@@ -316,7 +316,7 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
     execution_envs = dict(os.environ)
     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
     up = subprocess.call(
-        ['docker-compose', '--project-directory', '.', 'up', '--pull', 'never', '-d', *services],
+        ['docker-compose', '--project-directory', '.', 'up', '--timestamps', '--no-deps', '--pull', 'never', '-d', *services],
         env=execution_envs,
         cwd=in_docker_project_root
     )
