@@ -1,7 +1,9 @@
 import json
 import os
+import shlex
 import shutil
 import subprocess
+import sys
 from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
@@ -290,6 +292,18 @@ def make_debug_bash_env(env_config_compose_instance: EnvConfigComposeInstance,
         # f.write(f'export COMPOSE_PROJECT_NAME={new_project_name}\n')
 
 
+def print_state(execution_envs, in_docker_project_root):
+    status = subprocess.call(
+        shlex.split(
+            "docker-compose --project-directory . ps -a --format='table "
+            "{{.Service}}\t{{.ExitCode}}\t{{.Health}}\t{{.Image}}\t{{.State}}\t{{.Status}}'"
+        ),
+        env=execution_envs,
+        cwd=in_docker_project_root
+    )
+    assert status == 0, 'Не смогли получить стейт'  # TODO make error type + dc down  or в diagnostic mode
+
+
 def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, except_containers: list[str]):
     services = list(dc_env_config.env_config_instance.env_services_map.values())
     print(f'Starting services: {services}')
@@ -306,8 +320,12 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
         env=execution_envs,
         cwd=in_docker_project_root
     )
-    assert up == 0, 'Не смогли поднять'  # TODO make error type + dc down  or в diagnostic mode
-    # -> print how to connect and dc aliaces
+    if up != 0:
+        print('Не смогли поднять')  # TODO make error type + dc down  or в diagnostic mode
+        print_state(execution_envs, in_docker_project_root)
+        sys.exit()
+
+    # -> print how to connect and dc aliases
 
     # # TODO extract check into maxxwelld
     # check = subprocess.call(
