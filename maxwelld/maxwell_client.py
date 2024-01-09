@@ -1,12 +1,16 @@
 import json
 import os
 import shutil
+
+from copy import deepcopy
 from pathlib import Path
 from typing import Union
 
 from .env_types import Environment
+from .exec_types import EMPTY_ID
 from .exec_types import EnvConfigInstance
 from .up_new_env import actualize_in_flight
+from .up_new_env import down_in_flight_envs
 from .up_new_env import get_new_env_id
 from .up_new_env import make_debug_bash_env
 from .up_new_env import make_env_compose_instance_files
@@ -99,6 +103,9 @@ class MaxwellDemonService:
 
         print('Starting new environment: ', name)
         new_env_id = get_new_env_id()
+        if parallelism_limit == 1:
+            print(f'Using default service names with {parallelism_limit=}')
+            new_env_id = EMPTY_ID
 
         env_config_instance = make_env_config_instance(
             env_template=config_template,
@@ -114,6 +121,16 @@ class MaxwellDemonService:
             # dot_env_files_path=self.dot_env_files_path,
             tmp_env_path=self.tmp_envs_path,
         )
+
+        if new_env_id == EMPTY_ID:
+            in_flight = deepcopy(self._started_envs)
+            for env_name, env_params in in_flight.items():
+                if env_params == {'env_id': EMPTY_ID}:  # different env starts EMPTY_ID
+                    down_in_flight_envs(self.tmp_envs_path, EMPTY_ID, self.in_docker_project_root_path)
+                    del self._started_envs[env_name]
+
+        # TODO limit to parallelism_limit via while len(self._started_envs)
+
         make_debug_bash_env(compose_files_instance, self.host_env_tmp_directory)
         # print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
 

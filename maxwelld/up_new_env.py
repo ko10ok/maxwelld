@@ -15,11 +15,14 @@ from .env_types import EventStage
 from .env_types import FuncHandler
 from .env_types import Service
 from .env_types import ServiceMode
+from .exec_types import EMPTY_ID
 from .exec_types import EnvConfigComposeInstance
 from .exec_types import EnvConfigInstance
 
 
 def make_env_service_name(service, env_id):
+    if env_id == EMPTY_ID:
+        return service
     return f'{service}-{env_id}'
 
 
@@ -217,6 +220,15 @@ def get_new_instance_compose_files(compose_files: str, env_directory: Path) -> s
     )
 
 
+def get_compose_services(compose_files: str):
+    services = []
+    for filename in compose_files.split(':'):
+        dc_cfg = read_dc_file(filename)
+        if 'services' in dc_cfg:
+            services += list(dc_cfg['services'].keys())
+    return services
+
+
 def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
                                     compose_files: str,
                                     project_network_name: str,  # without "_default"
@@ -272,6 +284,10 @@ def make_debug_bash_env(env_config_compose_instance: EnvConfigComposeInstance,
 def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
     services = list(dc_env_config.env_config_instance.env_services_map.values())
     print(f'Starting services: {services}')
+    if dc_env_config.env_config_instance.env_id == EMPTY_ID:
+        services.remove('e2e')
+        services.remove('dockersock')
+        print(f'Starting services except original e2e, dockersock already started: {services}')
 
     execution_envs = dict(os.environ)
     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
@@ -326,6 +342,45 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
                 assert hook == 0, f'Не не получилось успешно обработать хук {handler}'  # TODO
                 # make error type + dc down  or в diagnostic mode -> print how to connect and dc
                 # aliaces
+
+
+def down_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
+    services = list(dc_env_config.env_config_instance.env_services_map.values())
+    print(f'Down services: {services}')
+    if dc_env_config.env_config_instance.env_id == EMPTY_ID:
+        services.remove('e2e')
+        services.remove('dockersock')
+        print(f'Down services except original e2e, dockersock started: {services}')
+
+    execution_envs = dict(os.environ)
+    execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
+    up = subprocess.call(
+        ['docker-compose', '--project-directory', '.', 'down', *services],
+        env=execution_envs,
+        cwd=in_docker_project_root
+    )
+    assert up == 0, 'Не смогли прибить все поднятое'  # TODO make error type + dc down  or в diagnostic mode
+
+
+def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root):
+    dirpath, dirnames, filenames = next(os.walk(tmp_envs_path / env_id))
+    filenames.remove('.env')
+    docker_files = get_new_instance_compose_files(':'.join(filenames),
+                                                  tmp_envs_path / env_id)
+
+    execution_envs = dict(os.environ)
+    execution_envs['COMPOSE_FILE'] = docker_files
+
+    services = get_compose_services(docker_files)
+    print(f'Down services except original e2e, dockersock started: {services}')
+    services.remove('e2e')
+    services.remove('dockersock')
+    down = subprocess.call(
+        ['docker-compose', '--project-directory', '.', 'down', *services],
+        env=execution_envs,
+        cwd=in_docker_project_root
+    )
+    assert down == 0, 'Не смогли прибить все поднятое'  # TODO make error type + dc down  or в diagnostic mode
 
 
 def setup_env_for_tests(env: Environment):

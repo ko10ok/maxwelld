@@ -93,7 +93,8 @@ class VedroMaxwellPlugin(Plugin):
             self._maxwell_demon.up_compose(
                 name=cfg_name + self._chosen_config_name_postfix,
                 config_template=env,
-                compose_files=self._compose_choice.compose_files
+                compose_files=self._compose_choice.compose_files,
+                parallelism_limit=self._compose_choice.parallel_env_limit,
             )
 
     def handle_setup_test_config(self, event: ScenarioRunEvent):
@@ -109,7 +110,8 @@ class VedroMaxwellPlugin(Plugin):
         in_flight_env = self._maxwell_demon.up_compose(
             name=config_env_name + self._chosen_config_name_postfix,
             config_template=env,
-            compose_files=self._compose_choice.compose_files
+            compose_files=self._compose_choice.compose_files,
+            parallelism_limit=self._compose_choice.parallel_env_limit,
         )
 
         setup_env_for_tests(in_flight_env)

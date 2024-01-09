@@ -4,6 +4,8 @@ from typing import Union
 
 from .env_types import Environment
 
+EMPTY_ID = 'no_id'
+
 
 class ComposeConfig(NamedTuple):
     compose_files: str
