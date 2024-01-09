@@ -3,11 +3,17 @@ import pathlib
 from setuptools import find_packages
 from setuptools import setup
 
+
+def find_required():
+    with open("requirements.txt") as f:
+        return f.read().splitlines()
+
+
 HERE = pathlib.Path(__file__).parent
 README = open("README.md").read()
 setup(
     name="maxwelld",
-    version="0.0.3",
+    version="0.0.4",
     description="docker compose testing env orchestrator",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -17,7 +23,7 @@ setup(
     url="https://github.com/ko10ok/maxwelld",
     license="Apache-2.0",
     packages=find_packages(exclude=("tests",)),
-    install_requires=[],
+    install_requires=find_required(),
     entry_points={},
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
