@@ -68,6 +68,13 @@ class Service(NamedTuple):
     def __repr__(self):
         return f'Service({self.name}, {self.mode})'
 
+    def with_env(self, env: Env):
+        return Service(
+            name=self.name,
+            env=Env(self.env | env),
+            events_handlers=self.events_handlers,
+            mode=self.mode
+        )
 
 def remove_dups(*services: Service) -> List[Service]:
     result_services = []
