@@ -20,7 +20,7 @@ from .up_new_env import unpack_services_env_template_params
 
 
 class MaxwellDemonService:
-    def __init__(self, project):
+    def __init__(self, project, non_stop_containers):
         assert shutil.which("docker"), 'Docker not installed'
         assert shutil.which("docker-compose"), 'Docker-compose not installed'
         assert os.environ.get('COMPOSE_FILES_DIRECTORY'), \
@@ -33,6 +33,7 @@ class MaxwellDemonService:
             'HOST_TMP_ENV_DIRECTORY env should be set'
 
         self._project = project
+        self._non_stop_containers = non_stop_containers
         self.tmp_envs_path = Path('/env-tmp')  # TODO get from envs
         self.compose_files_path = Path(os.environ.get('COMPOSE_FILES_DIRECTORY'))
         # self.dot_env_files_path = Path('/compose-files/envs')
@@ -95,10 +96,15 @@ class MaxwellDemonService:
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
         ):
-            print(f'Existing env for {name}: {self._started_envs[name]}, no need to start again')
+
+
             if verbose:
-                print(f'Config params: {unpack_services_env_template_params(existing_inflight_env.env)}')
-            print(f'Docker-compose access: > source ./env-tmp/{existing_inflight_env.env_id}/.env')
+                print(f'Existing env for {name}: {self._started_envs[name]},'
+                      f' no need to start again')
+                print(f'Config params:'
+                      f' {unpack_services_env_template_params(existing_inflight_env.env)}')
+                print(f'Docker-compose access: '
+                      f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env
 
         print('Starting new environment: ', name)
@@ -126,16 +132,18 @@ class MaxwellDemonService:
             in_flight = deepcopy(self._started_envs)
             for env_name, env_params in in_flight.items():
                 if env_params == {'env_id': EMPTY_ID}:  # different env starts EMPTY_ID
-                    down_in_flight_envs(self.tmp_envs_path, EMPTY_ID, self.in_docker_project_root_path)
+                    down_in_flight_envs(self.tmp_envs_path, EMPTY_ID, self.in_docker_project_root_path, except_containers=self._non_stop_containers)
                     del self._started_envs[env_name]
 
         # TODO limit to parallelism_limit via while len(self._started_envs)
 
         make_debug_bash_env(compose_files_instance, self.host_env_tmp_directory)
-        # print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
+        print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
 
         # TODO uncomment
-        in_flight_env = run_env(compose_files_instance, self.in_docker_project_root_path)
+        in_flight_env = run_env(
+            compose_files_instance, self.in_docker_project_root_path, self._non_stop_containers
+        )
 
 
         # TODO should be transactional with file
@@ -155,9 +163,11 @@ class MaxwellDemonService:
 
 
 class MaxwellDemonClient:
-    def __init__(self, project):
+    def __init__(self, project, non_stop_containers):
         self._project = project
-        self._server = MaxwellDemonService(project)
+        self._non_stop_containers = non_stop_containers
+        self._server = MaxwellDemonService(project, self._non_stop_containers)
+
 
     def up_compose(self, name, config_template: Environment, compose_files: str, isolation=None,
                    parallelism_limit=None, verbose=False) -> Environment:

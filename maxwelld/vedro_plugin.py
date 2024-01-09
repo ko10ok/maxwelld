@@ -47,8 +47,10 @@ class VedroMaxwellPlugin(Plugin):
         super().__init__(config)
         self._envs: Environments = config.envs
         self._project = config.project
+        self._non_stop_containers = config.non_stop_containers
         self._maxwell_demon = MaxwellDemonClient(
-            project=self._project
+            project=self._project,
+            non_stop_containers=self._non_stop_containers
         )
         self._list_envs = None
 
@@ -59,6 +61,7 @@ class VedroMaxwellPlugin(Plugin):
         self._compose_choice: Union[ComposeConfig, None] = self._compose_configs[self._compose_choice_name]
         self._force_env_name: Union[str, None] = None
         self._chosen_config_name_postfix: str = ''
+
 
     def _print_running_config(self):
         print(f'Running {self._compose_choice_name} compose config: {self._compose_choice}')
@@ -95,6 +98,7 @@ class VedroMaxwellPlugin(Plugin):
                 config_template=env,
                 compose_files=self._compose_choice.compose_files,
                 parallelism_limit=self._compose_choice.parallel_env_limit,
+                verbose=self._verbose
             )
 
     def handle_setup_test_config(self, event: ScenarioRunEvent):
@@ -103,7 +107,8 @@ class VedroMaxwellPlugin(Plugin):
             print(f'Test request {config_env_name} config')
 
         if self._force_env_name:
-            print(f'Overriding tests config:{config_env_name} by --md-env={self._force_env_name}')
+            if self._verbose:
+                print(f'Overriding tests config:{config_env_name} by --md-env={self._force_env_name}')
             config_env_name = self._force_env_name
 
         env = getattr(self._envs, config_env_name)
@@ -112,6 +117,7 @@ class VedroMaxwellPlugin(Plugin):
             config_template=env,
             compose_files=self._compose_choice.compose_files,
             parallelism_limit=self._compose_choice.parallel_env_limit,
+            verbose=self._verbose,
         )
 
         setup_env_for_tests(in_flight_env)
@@ -168,7 +174,7 @@ class VedroMaxwellPlugin(Plugin):
             exit(0)
 
         if event.args.md_env:
-            self._force_env_name = event.args.env
+            self._force_env_name = event.args.md_env
 
         self._print_running_config()
 
@@ -187,3 +193,6 @@ class VedroMaxwell(PluginConfig):
 
     # Project name directory and {project}_default network
     project: str = None
+
+    # Containers which shouldn't stop
+    non_stop_containers = ['e2e', 'dockersock']

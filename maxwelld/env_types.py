@@ -22,6 +22,11 @@ class Environments:
         ]
 
 
+class AsIs:
+    def __init__(self, value):
+        self.value = value
+
+
 class Env(Dict):
     ...
 
@@ -35,7 +40,7 @@ class EventStage(Enum):
 
 class Handler(NamedTuple):
     stage: EventStage
-    cmd: list[str]
+    cmd: list[str | AsIs]
     executor: str = None
 
 
@@ -91,7 +96,7 @@ class Environment:  # TODO rename Environment
         return self._name
 
     def __repr__(self):
-        return f'Service({self._name}, {self._services})'
+        return f'Environment({self._name})'
 
     def get_services(self) -> dict:
         return self._services_dict
@@ -107,10 +112,6 @@ class Environment:  # TODO rename Environment
 
     def __eq__(self, other):
         return self._name == other
-
-
-class DontSubstitute:
-    ...
 
 
 class SingletonService(Service):

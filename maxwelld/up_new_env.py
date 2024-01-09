@@ -9,6 +9,7 @@ from warnings import warn
 
 import yaml
 
+from .env_types import AsIs
 from .env_types import Env
 from .env_types import Environment
 from .env_types import EventStage
@@ -180,14 +181,22 @@ def patch_services_names(dc_cfg: dict, services_map: dict[str, str]) -> dict:
         result_service_name = services_map[service]
         new_service_dc_cfg['services'][result_service_name] = srv_cfg
 
-        # TODO healthy state cxheck possile via hashmap in some versions
         if 'depends_on' in srv_cfg:
-            new_deps = [
-                services_map[item] for item in srv_cfg['depends_on']
-            ]
-            new_service_dc_cfg['services'][result_service_name] = srv_cfg | {
-                'depends_on': new_deps
-            }
+            if isinstance(srv_cfg['depends_on'], list):
+                new_deps = [
+                    services_map[item] for item in srv_cfg['depends_on']
+                ]
+                new_service_dc_cfg['services'][result_service_name] = srv_cfg | {
+                    'depends_on': new_deps
+                }
+            if isinstance(srv_cfg['depends_on'], dict):
+                new_deps = {
+                    services_map[service_name]: condition
+                    for service_name, condition in srv_cfg['depends_on'].items()
+                }
+                new_service_dc_cfg['services'][result_service_name] = srv_cfg | {
+                    'depends_on': new_deps
+                }
     return new_service_dc_cfg
 
 
@@ -281,12 +290,13 @@ def make_debug_bash_env(env_config_compose_instance: EnvConfigComposeInstance,
         # f.write(f'export COMPOSE_PROJECT_NAME={new_project_name}\n')
 
 
-def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
+def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, except_containers: list[str]):
     services = list(dc_env_config.env_config_instance.env_services_map.values())
     print(f'Starting services: {services}')
     if dc_env_config.env_config_instance.env_id == EMPTY_ID:
-        services.remove('e2e')
-        services.remove('dockersock')
+        for container in except_containers:
+            if container in services:
+                services.remove(container)
         print(f'Starting services except original e2e, dockersock already started: {services}')
 
     execution_envs = dict(os.environ)
@@ -325,11 +335,17 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
                     continue
 
                 target_service = dc_env_config.env_config_instance.env_services_map[
-                    handler.executor or service]
+                    handler.executor or service
+                ]
 
-                substituted_cmd = [
-                    cmd_part.format(**dc_env_config.env_config_instance.env_services_map) for
-                    cmd_part in handler.cmd]
+                substituted_cmd = []
+                for cmd_part in handler.cmd:
+                    if isinstance(cmd_part, AsIs):
+                        substituted_cmd += [cmd_part.value]
+                        continue
+                    substituted_cmd += [
+                        cmd_part.format(**dc_env_config.env_config_instance.env_services_map)
+                    ]
                 print(f'Executing in {target_service} container: {substituted_cmd}')
                 hook = subprocess.call(
                     [
@@ -344,25 +360,27 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
                 # aliaces
 
 
-def down_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
-    services = list(dc_env_config.env_config_instance.env_services_map.values())
-    print(f'Down services: {services}')
-    if dc_env_config.env_config_instance.env_id == EMPTY_ID:
-        services.remove('e2e')
-        services.remove('dockersock')
-        print(f'Down services except original e2e, dockersock started: {services}')
+# def down_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
+#     services = list(dc_env_config.env_config_instance.env_services_map.values())
+#     print(f'Down services: {services}')
+#     if dc_env_config.env_config_instance.env_id == EMPTY_ID:
+#         if 'e2e' in services:
+#             services.remove('e2e')
+#         if 'dockersock' in services:
+#             services.remove('dockersock')
+#         print(f'Down services except original e2e, dockersock started: {services}')
+#
+#     execution_envs = dict(os.environ)
+#     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
+#     up = subprocess.call(
+#         ['docker-compose', '--project-directory', '.', 'down', *services],
+#         env=execution_envs,
+#         cwd=in_docker_project_root
+#     )
+#     assert up == 0, 'Не смогли прибить все поднятое'  # TODO make error type + dc down  or в diagnostic mode
 
-    execution_envs = dict(os.environ)
-    execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
-    up = subprocess.call(
-        ['docker-compose', '--project-directory', '.', 'down', *services],
-        env=execution_envs,
-        cwd=in_docker_project_root
-    )
-    assert up == 0, 'Не смогли прибить все поднятое'  # TODO make error type + dc down  or в diagnostic mode
 
-
-def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root):
+def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root, except_containers: list[str]):
     dirpath, dirnames, filenames = next(os.walk(tmp_envs_path / env_id))
     filenames.remove('.env')
     docker_files = get_new_instance_compose_files(':'.join(filenames),
@@ -372,9 +390,10 @@ def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root):
     execution_envs['COMPOSE_FILE'] = docker_files
 
     services = get_compose_services(docker_files)
-    print(f'Down services except original e2e, dockersock started: {services}')
-    services.remove('e2e')
-    services.remove('dockersock')
+    print(f'Down services: {services}, except {except_containers}')
+    for container in except_containers:
+        if container in services:
+            services.remove(container)
     down = subprocess.call(
         ['docker-compose', '--project-directory', '.', 'down', *services],
         env=execution_envs,
