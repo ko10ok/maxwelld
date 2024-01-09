@@ -1,6 +1,7 @@
 import pathlib
 
-from setuptools import find_packages, setup
+from setuptools import find_packages
+from setuptools import setup
 
 HERE = pathlib.Path(__file__).parent
 README = open("README.md").read()
@@ -23,5 +24,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
 )
