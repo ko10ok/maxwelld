@@ -45,6 +45,7 @@ def _extract_scenarios_configs_set(scenarios: List[VirtualScenario] | Iterator[
 class VedroMaxwellPlugin(Plugin):
     def __init__(self, config: Type["VedroMaxwell"]) -> None:
         super().__init__(config)
+        self._enabled = config.enabled
         self._envs: Environments = config.envs
         self._project = config.project
         self._non_stop_containers = config.non_stop_containers
@@ -62,13 +63,15 @@ class VedroMaxwellPlugin(Plugin):
         self._force_env_name: Union[str, None] = None
         self._chosen_config_name_postfix: str = ''
 
-
     def _print_running_config(self):
         print(f'Running {self._compose_choice_name} compose config: {self._compose_choice}')
         if self._force_env_name:
             print(f'Overriding configuration for tests: {self._force_env_name}')
 
     def subscribe(self, dispatcher: Dispatcher) -> None:
+        if not self._enabled:
+            return
+
         dispatcher.listen(vedro.events.ArgParseEvent, self.handle_arg_parse) \
             .listen(vedro.events.ArgParsedEvent, self.handle_arg_parsed) \
             .listen(vedro.events.StartupEvent, self.handle_scenarios) \
@@ -181,6 +184,9 @@ class VedroMaxwellPlugin(Plugin):
 
 class VedroMaxwell(PluginConfig):
     plugin = VedroMaxwellPlugin
+
+    # Enables plugin
+    enabled = False
 
     # Maxwell environments
     envs: Environments = None
