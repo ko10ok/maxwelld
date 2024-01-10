@@ -316,14 +316,14 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
     execution_envs = dict(os.environ)
     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
     up = subprocess.call(
-        ['docker-compose', '--project-directory', '.', 'up', '--timestamps', '--no-deps', '--pull', 'never', '-d', *services],
+        ['docker-compose', '--project-directory', '.', 'up', '--timestamps', '--no-deps', '--pull', 'never', '--timeout', '300', '-d', *services],
         env=execution_envs,
         cwd=in_docker_project_root
     )
     if up != 0:
         print('Не смогли поднять')  # TODO make error type + dc down  or в diagnostic mode
         print_state(execution_envs, in_docker_project_root)
-        sys.exit()
+        sys.exit(up)
 
     # -> print how to connect and dc aliases
 
@@ -373,9 +373,13 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
                     env=execution_envs,
                     cwd=in_docker_project_root
                 )
-                assert hook == 0, f'Не не получилось успешно обработать хук {handler}'  # TODO
-                # make error type + dc down  or в diagnostic mode -> print how to connect and dc
-                # aliaces
+                # TODO make error type + dc down  or в diagnostic mode -> print how to connect
+                #  and dc aliaces
+                if hook != 0:
+                    print(f'Не не получилось успешно обработать хук {handler}')
+                    print_state(execution_envs, in_docker_project_root)
+                    sys.exit(hook)
+
 
 
 # def down_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
@@ -417,7 +421,11 @@ def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root, exc
         env=execution_envs,
         cwd=in_docker_project_root
     )
-    assert down == 0, 'Не смогли прибить все поднятое'  # TODO make error type + dc down  or в diagnostic mode
+    # TODO make error type + dc down  or в diagnostic mode
+    if down != 0:
+        print('Не смогли прибить все поднятое')
+        print_state(execution_envs, in_docker_project_root)
+        sys.exit(down)
 
 
 def setup_env_for_tests(env: Environment):
