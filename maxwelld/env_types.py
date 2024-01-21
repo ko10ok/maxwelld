@@ -120,6 +120,9 @@ class Environment:  # TODO rename Environment
     def __eq__(self, other):
         return self._name == other
 
+    def __hash__(self):
+        return hash(self._name)
+
 
 class SingletonService(Service):
     singleton: bool = False
