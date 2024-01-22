@@ -93,16 +93,19 @@ class VedroMaxwellPlugin(Plugin):
             sys.exit()
 
         # TODO reschedule scenarios sorted by env-tag if --md-parallel-env-limit set
-
-        for cfg_name in list(needed_configs):
-            env = getattr(self._envs, cfg_name)
-            self._maxwell_demon.up_compose(
-                name=cfg_name + self._chosen_config_name_postfix,
-                config_template=env,
-                compose_files=self._compose_choice.compose_files,
-                parallelism_limit=self._compose_choice.parallel_env_limit,
-                verbose=self._verbose
-            )
+        if (
+                (self._compose_choice.parallel_env_limit is None)
+                or (self._compose_choice.parallel_env_limit == len(needed_configs))
+        ):
+            for cfg_name in list(needed_configs):
+                env = getattr(self._envs, cfg_name)
+                self._maxwell_demon.up_compose(
+                    name=cfg_name + self._chosen_config_name_postfix,
+                    config_template=env,
+                    compose_files=self._compose_choice.compose_files,
+                    parallelism_limit=self._compose_choice.parallel_env_limit,
+                    verbose=self._verbose
+                )
 
     def handle_setup_test_config(self, event: ScenarioRunEvent):
         config_env_name = _extract_scenario_config(event.scenario_result.scenario)
