@@ -1,45 +1,28 @@
 import sys
 from sys import exit
-from typing import Iterator
-from typing import List
 from typing import Type
 from typing import Union
 
 import vedro.events
+from vedro.core import ConfigType
 from vedro.core import Dispatcher
 from vedro.core import Plugin
 from vedro.core import PluginConfig
-from vedro.core import VirtualScenario
 from vedro.events import ArgParseEvent
 from vedro.events import ArgParsedEvent
+from vedro.events import ConfigLoadedEvent
 from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
-from .env_types import DEFAULT_ENV
-from .env_types import Environment
 from .env_types import Environments
 from .exec_types import ComposeConfig
 from .maxwell_client import MaxwellDemonClient
+from .scenario_ordering import EnvTagsOrderer
+from .scenario_tag_processing import extract_scenario_config
+from .scenario_tag_processing import extract_scenarios_configs_set
 from .up_new_env import setup_env_for_tests
 
 DEFAULT_COMPOSE = 'default'
-
-
-def _extract_scenario_config(scenario: VirtualScenario):
-    scenario_env = DEFAULT_ENV
-    if hasattr(scenario._orig_scenario, 'tags'):
-        for tag in scenario._orig_scenario.tags:
-            if isinstance(tag, Environment):
-                scenario_env = str(tag)
-    return scenario_env
-
-
-def _extract_scenarios_configs_set(scenarios: List[VirtualScenario] | Iterator[
-    VirtualScenario]):
-    needed_configs = set()
-    for scenario in scenarios:
-        needed_configs.add(_extract_scenario_config(scenario))
-    return needed_configs
 
 
 class VedroMaxwellPlugin(Plugin):
@@ -72,13 +55,17 @@ class VedroMaxwellPlugin(Plugin):
         if not self._enabled:
             return
 
-        dispatcher.listen(vedro.events.ArgParseEvent, self.handle_arg_parse) \
+        dispatcher.listen(ConfigLoadedEvent, self.on_config_loaded) \
+            .listen(vedro.events.ArgParseEvent, self.handle_arg_parse) \
             .listen(vedro.events.ArgParsedEvent, self.handle_arg_parsed) \
             .listen(vedro.events.StartupEvent, self.handle_scenarios) \
             .listen(vedro.events.ScenarioRunEvent, self.handle_setup_test_config)
 
+    def on_config_loaded(self, event: ConfigLoadedEvent) -> None:
+        self._global_config: ConfigType = event.config
+
     def handle_scenarios(self, event: StartupEvent) -> None:
-        needed_configs = _extract_scenarios_configs_set(event.scheduler.scheduled)
+        needed_configs = extract_scenarios_configs_set(event.scheduler.scheduled)
         print('Tests requests configs:', needed_configs)
 
         if self._verbose:
@@ -108,7 +95,7 @@ class VedroMaxwellPlugin(Plugin):
                 )
 
     def handle_setup_test_config(self, event: ScenarioRunEvent):
-        config_env_name = _extract_scenario_config(event.scenario_result.scenario)
+        config_env_name = extract_scenario_config(event.scenario_result.scenario)
         if self._verbose:
             print(f'Test request {config_env_name} config')
 
@@ -183,6 +170,7 @@ class VedroMaxwellPlugin(Plugin):
             self._force_env_name = event.args.md_env
 
         self._print_running_config()
+        self._global_config.Registry.ScenarioOrderer.register(EnvTagsOrderer, self)
 
 
 class VedroMaxwell(PluginConfig):

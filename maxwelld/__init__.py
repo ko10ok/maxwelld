@@ -12,7 +12,7 @@ from .maxwell_client import MaxwellDemonClient
 from .vedro_plugin import DEFAULT_COMPOSE
 from .vedro_plugin import VedroMaxwell
 
-__version__ = "0.0.12"
+__version__ = "0.0.13"
 __all__ = (
     'MaxwellDemonClient',
     'VedroMaxwell', 'DEFAULT_COMPOSE', 'ComposeConfig',
