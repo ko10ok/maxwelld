@@ -79,7 +79,12 @@ class VedroMaxwellPlugin(Plugin):
         if self._list_envs:
             sys.exit()
 
-        # TODO reschedule scenarios sorted by env-tag if --md-parallel-env-limit set
+        if (
+                self._compose_choice.parallel_env_limit
+                and (len(needed_configs) > self._compose_choice.parallel_env_limit)
+        ):
+            self._global_config.Registry.ScenarioOrderer.register(EnvTagsOrderer, self)
+
         if (
                 (self._compose_choice.parallel_env_limit is None)
                 or (self._compose_choice.parallel_env_limit == len(needed_configs))
@@ -170,7 +175,6 @@ class VedroMaxwellPlugin(Plugin):
             self._force_env_name = event.args.md_env
 
         self._print_running_config()
-        self._global_config.Registry.ScenarioOrderer.register(EnvTagsOrderer, self)
 
 
 class VedroMaxwell(PluginConfig):
