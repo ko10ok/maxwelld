@@ -65,7 +65,7 @@ class ServiceMode(Enum):
 class Service(NamedTuple):
     name: str
     env: Env = Env()
-    events_handlers: List[Handler | FuncHandler] = []
+    events_handlers: List[Handler | FuncHandler | ComposeStateHandler] = []
     mode: ServiceMode = ServiceMode.ON
 
     def __eq__(self, other):
