@@ -49,6 +49,12 @@ class FuncHandler(NamedTuple):
     func: Callable
 
 
+class ComposeStateHandler(NamedTuple):
+    stage: EventStage
+    func: Callable[[Callable, List], None]
+    executor: str = None
+
+
 class ServiceMode(Enum):
     ON = auto()
     OFF = auto()

@@ -96,8 +96,6 @@ class MaxwellDemonService:
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
         ):
-
-
             if verbose:
                 print(f'Existing env for {name}: {self._started_envs[name]},'
                       f' no need to start again')
