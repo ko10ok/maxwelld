@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.text import Text
 from rtry import retry
 
-from maxwelld.styles import Style
+from .styles import Style
 
 
 def service_status_str(service) -> Text:
