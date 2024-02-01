@@ -157,7 +157,7 @@ class MaxwellDemonService:
             print(f'Config params: {unpack_services_env_template_params(env_config_instance.env)}')
         CONSOLE.print(
             Text(f'Docker-compose access: > ', style=Style.info)
-            .append(Text('source ./env-tmp/{new_env_id}/.env', style=Style.mark_neutral))
+            .append(Text(f'source ./env-tmp/{new_env_id}/.env', style=Style.mark_neutral))
         )
 
         self.update_inflight_envs(
