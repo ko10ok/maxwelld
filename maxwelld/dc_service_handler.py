@@ -2,10 +2,10 @@ from typing import Callable
 from typing import Dict
 from typing import List
 
-from rich.console import Console
 from rich.text import Text
 from rtry import retry
 
+from .output import CONSOLE
 from .styles import Style
 
 
@@ -47,10 +47,9 @@ _previous_state: Text | None = None
 
 
 def check_all_services_up(get_services_state: Callable[[], List[Dict]], services: List[str]):
-    con = Console()
     global _previous_state
     if _previous_state == None:
-        con.print(Text('Starting services check up', style=Style.info))
+        CONSOLE.print(Text('Starting services check up', style=Style.info))
         _previous_state = Text()
 
     services_state = get_services_state()
@@ -62,20 +61,19 @@ def check_all_services_up(get_services_state: Callable[[], List[Dict]], services
 
 
     if all_up:
-        con.print(Text(' ✔ All services up:', style=Style.good))
-        con.print(services_status_str(services_state))
+        CONSOLE.print(Text(' ✔ All services up:', style=Style.good))
+        CONSOLE.print(services_status_str(services_state))
         return 0
 
     current_state = not_ready_services_status_str(services_state)
     if _previous_state[:60] != current_state[:60]:
-        con.print(Text(' ✗ Still not ready:', style=Style.bad))
-        con.print(not_ready_services_status_str(services_state))
+        CONSOLE.print(Text(' ✗ Still not ready:', style=Style.bad))
+        CONSOLE.print(not_ready_services_status_str(services_state))
         _previous_state = current_state
     return -1
 
 
 def wait_all_services_up(attempts=100, delay_s=3):
     _previous_state = Text()
-    con = Console()
 
     return retry(attempts=attempts, delay=delay_s, until=lambda x: x != 0)(check_all_services_up)

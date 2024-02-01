@@ -6,12 +6,12 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Union
 
-from rich.console import Console
 from rich.text import Text
 
 from .env_types import Environment
 from .exec_types import EMPTY_ID
 from .exec_types import EnvConfigInstance
+from .output import CONSOLE
 from .styles import Style
 from .up_new_env import actualize_in_flight
 from .up_new_env import down_in_flight_envs
@@ -96,7 +96,7 @@ class MaxwellDemonService:
     def up_compose(self, name: str, config_template: Environment, compose_files: str,
                    isolation=None, parallelism_limit=None, verbose=False) -> Environment:
         # Envs -> Env -> CheckExisting -> TestEnv -> ComposeFiles -> run()
-        con = Console()
+
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
         ):
@@ -109,7 +109,7 @@ class MaxwellDemonService:
                       f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env
 
-        con.print(
+        CONSOLE.print(
             Text('Starting new environment: ', style=Style.info)
             .append(Text(name, style=Style.mark))
         )
@@ -152,10 +152,10 @@ class MaxwellDemonService:
 
 
         # TODO should be transactional with file
-        con.print(Text(f'New environment for {name} started'))
+        CONSOLE.print(Text(f'New environment for {name} started'))
         if verbose:
             print(f'Config params: {unpack_services_env_template_params(env_config_instance.env)}')
-        con.print(
+        CONSOLE.print(
             Text(f'Docker-compose access: > ', style=Style.info)
             .append(Text('source ./env-tmp/{new_env_id}/.env', style=Style.mark_neutral))
         )

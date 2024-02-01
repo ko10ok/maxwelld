@@ -11,7 +11,6 @@ from uuid import uuid4
 from warnings import warn
 
 import yaml
-from rich.console import Console
 from rich.text import Text
 
 from .docker_compose_interface import dc_state
@@ -26,6 +25,7 @@ from .env_types import ServiceMode
 from .exec_types import EMPTY_ID
 from .exec_types import EnvConfigComposeInstance
 from .exec_types import EnvConfigInstance
+from .output import CONSOLE
 from .styles import Style
 
 
@@ -311,9 +311,8 @@ def print_state(execution_envs, in_docker_project_root):
 
 
 def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, except_containers: list[str]):
-    con = Console()
     services = list(dc_env_config.env_config_instance.env_services_map.values())
-    con.print(
+    CONSOLE.print(
         Text('Starting services: ', style=Style.info)
         .append(Text(str(services), style=Style.good))
     )
