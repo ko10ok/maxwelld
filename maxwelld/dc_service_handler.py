@@ -1,79 +1,71 @@
+from functools import partial
 from typing import Callable
-from typing import Dict
 from typing import List
 
 from rich.text import Text
 from rtry import retry
 
+from .docker_compose_interface import ComposeHealth
+from .docker_compose_interface import ComposeState
+from .docker_compose_interface import ServiceComposeState
+from .docker_compose_interface import ServicesComposeState
 from .output import CONSOLE
 from .styles import Style
 
 
-def service_status_str(service) -> Text:
-    service_string = Text('     ')
-    service_string.append(Text(f"{service['Service']:{20}}"))
-    service_string.append(Text(
-        f"{service['State']:{20}}",
-        style=Style.good if service['State'] == 'running' else Style.bad
-    ))
-    service_string.append(Text(
-        f"{service['Health']:{20}}",
-        style=Style.good if service['Health'] == 'healthy' else Style.bad
-    ))
-    service_string.append(Text(
-        service['Status']
-    ))
-    service_string.append(Text('\n'))
-    return service_string
+def is_service_running_and_healthy(service_state: ServiceComposeState) -> bool:
+    return (service_state.state != ComposeState.RUNNING
+            or service_state.health not in (ComposeHealth.EMPTY, ComposeHealth.HEALTHY))
 
 
-def services_status_str(services_state) -> Text:
-    services_text = Text()
-    for service_state in services_state:
-        services_text.append(service_status_str(service_state))
-    return services_text
+def wait_all_services_up(attempts=100, delay_s=3) -> Callable[[], ServicesComposeState]:
+    _previous_state = None
+    attempt = 0
 
+    def check_all_services_up(
+            get_services_state: Callable[[], ServicesComposeState],
+            services: List[str]
+    ):
+        output_style = Style()
+        nonlocal _previous_state
+        if _previous_state is None:
+            CONSOLE.print(Text('Starting services check up', style=output_style.info))
 
-def not_ready_services_status_str(services_state) -> Text:
-    services_text = Text()
-    for service_state in services_state:
-        if service_state['State'] != 'running' or service_state['Health'] not in ('', 'healthy'):
-            services_text.append(service_status_str(service_state))
+        services_state = get_services_state()
+        all_up = (all([
+            service.state == ComposeState.RUNNING
+            for service in services_state if service.name in services
+        ]) and all([
+            service.health in (ComposeHealth.EMPTY, ComposeHealth.HEALTHY)
+            for service in services_state if service.name in services
+        ]))
 
-    return services_text
+        if all_up:
+            CONSOLE.print(Text(' ✔ All services up:', style=output_style.good))
+            CONSOLE.print(services_state.as_rich_text(style=output_style))
+            return 0
 
+        if _previous_state != services_state:
+            CONSOLE.print(Text(' ✗ Still not ready:', style=output_style.bad))
+            CONSOLE.print(services_state.as_rich_text(
+                filter=is_service_running_and_healthy,
+                style=output_style
+            ))
+            _previous_state = services_state
 
-_previous_state: Text | None = None
+        nonlocal attempt
+        attempt += 1
+        if attempt >= attempts:
+            CONSOLE.print(Text(' ✗ Stop retries. Services still not ready:', style=output_style.bad))
+            CONSOLE.print(services_state.as_rich_text(
+                style=output_style
+            ))
+        return -1
 
-
-def check_all_services_up(get_services_state: Callable[[], List[Dict]], services: List[str]):
-    global _previous_state
-    if _previous_state == None:
-        CONSOLE.print(Text('Starting services check up', style=Style.info))
-        _previous_state = Text()
-
-    services_state = get_services_state()
-    all_up = (all([
-        s['State'] == 'running' for s in services_state if s['Service'] in services
-    ]) and all([
-        s['Health'] in ('', 'healthy') for s in services_state if s['Service'] in services
-    ]))
-
-
-    if all_up:
-        CONSOLE.print(Text(' ✔ All services up:', style=Style.good))
-        CONSOLE.print(services_status_str(services_state))
-        return 0
-
-    current_state = not_ready_services_status_str(services_state)
-    if _previous_state[:60] != current_state[:60]:
-        CONSOLE.print(Text(' ✗ Still not ready:', style=Style.bad))
-        CONSOLE.print(not_ready_services_status_str(services_state))
-        _previous_state = current_state
-    return -1
-
-
-def wait_all_services_up(attempts=100, delay_s=3):
-    _previous_state = Text()
-
-    return retry(attempts=attempts, delay=delay_s, until=lambda x: x != 0)(check_all_services_up)
+    return retry(
+        attempts=attempts,
+        delay=delay_s,
+        until=lambda x: x != 0
+    )(
+        partial(check_all_services_up)
+    )
