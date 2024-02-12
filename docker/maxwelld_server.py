@@ -5,7 +5,7 @@ from aiohttp import web
 from aiohttp.web_request import Request
 
 from maxwelld import MaxwellDemonService
-from maxwelld.request_types import RequestType
+from maxwelld.server.request_types import RequestType
 
 routes = web.RouteTableDef()
 

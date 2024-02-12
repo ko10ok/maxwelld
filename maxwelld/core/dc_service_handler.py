@@ -9,8 +9,8 @@ from .docker_compose_interface import ComposeHealth
 from .docker_compose_interface import ComposeState
 from .docker_compose_interface import ServiceComposeState
 from .docker_compose_interface import ServicesComposeState
-from .output import CONSOLE
-from .styles import Style
+from maxwelld.output import CONSOLE
+from maxwelld.output.styles import Style
 
 
 def is_service_running_and_healthy(service_state: ServiceComposeState) -> bool:

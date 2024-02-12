@@ -8,19 +8,19 @@ from typing import Union
 
 from rich.text import Text
 
-from .env_types import Environment
-from .exec_types import EMPTY_ID
-from .exec_types import EnvConfigInstance
-from .output import CONSOLE
-from .styles import Style
-from .up_new_env import actualize_in_flight
-from .up_new_env import down_in_flight_envs
-from .up_new_env import get_new_env_id
-from .up_new_env import make_debug_bash_env
-from .up_new_env import make_env_compose_instance_files
-from .up_new_env import make_env_config_instance
-from .up_new_env import run_env
-from .up_new_env import unpack_services_env_template_params
+from maxwelld.env_description.env_types import Environment
+from maxwelld.core.exec_types import EMPTY_ID
+from maxwelld.core.exec_types import EnvConfigInstance
+from maxwelld.output import CONSOLE
+from maxwelld.output.styles import Style
+from maxwelld.core.up_new_env import actualize_in_flight
+from maxwelld.core.up_new_env import down_in_flight_envs
+from maxwelld.core.up_new_env import get_new_env_id
+from maxwelld.core.up_new_env import make_debug_bash_env
+from maxwelld.core.up_new_env import make_env_compose_instance_files
+from maxwelld.core.up_new_env import make_env_config_instance
+from maxwelld.core.up_new_env import run_env
+from maxwelld.core.up_new_env import unpack_services_env_template_params
 
 
 class MaxwellDemonService:

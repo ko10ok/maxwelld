@@ -1,19 +1,19 @@
-from .env_tools import off
-from .env_types import DEFAULT_ENV
-from .env_types import Env
-from .env_types import Environment
-from .env_types import Environments
-from .env_types import EventStage
-from .env_types import Handler
-from .env_types import ComposeStateHandler
-from .env_types import Service
-from .env_types import AsIs
-from .exec_types import ComposeConfig
-from .maxwell_client import MaxwellDemonClient
-from .maxwell_client import MaxwellDemonService
-from .vedro_plugin import DEFAULT_COMPOSE
-from .vedro_plugin import VedroMaxwell
-from .dc_service_handler import wait_all_services_up
+from maxwelld.env_description.env_tools import off
+from maxwelld.env_description.env_types import DEFAULT_ENV
+from maxwelld.env_description.env_types import Env
+from maxwelld.env_description.env_types import Environment
+from maxwelld.env_description.env_types import Environments
+from maxwelld.env_description.env_types import EventStage
+from maxwelld.env_description.env_types import Handler
+from maxwelld.env_description.env_types import ComposeStateHandler
+from maxwelld.env_description.env_types import Service
+from maxwelld.env_description.env_types import AsIs
+from maxwelld.core.exec_types import ComposeConfig
+from maxwelld.client.maxwell_client import MaxwellDemonClient
+from maxwelld.client.maxwell_client import MaxwellDemonService
+from maxwelld.vedro_plugin.plugin import DEFAULT_COMPOSE
+from maxwelld.vedro_plugin.plugin import VedroMaxwell
+from maxwelld.core.dc_service_handler import wait_all_services_up
 
 __version__ = "0.1.0"
 __all__ = (

@@ -15,15 +15,15 @@ from vedro.events import ConfigLoadedEvent
 from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
-from .env_types import Environments
-from .exec_types import ComposeConfig
-from .maxwell_client import MaxwellDemonClient
-from .output import CONSOLE
-from .scenario_ordering import EnvTagsOrderer
-from .scenario_tag_processing import extract_scenario_config
-from .scenario_tag_processing import extract_scenarios_configs_set
-from .styles import Style
-from .up_new_env import setup_env_for_tests
+from maxwelld.env_description.env_types import Environments
+from maxwelld.core.exec_types import ComposeConfig
+from maxwelld.client.maxwell_client import MaxwellDemonClient
+from maxwelld.output import CONSOLE
+from maxwelld.vedro_plugin.scenario_ordering import EnvTagsOrderer
+from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenario_config
+from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenarios_configs_set
+from maxwelld.output.styles import Style
+from maxwelld.core.up_new_env import setup_env_for_tests
 
 DEFAULT_COMPOSE = 'default'
 

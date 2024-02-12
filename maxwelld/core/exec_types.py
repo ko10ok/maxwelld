@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import NamedTuple
 from typing import Union
 
-from .env_types import Environment
+from maxwelld.env_description.env_types import Environment
 
 EMPTY_ID = 'no_id'
 

@@ -13,20 +13,20 @@ from warnings import warn
 import yaml
 from rich.text import Text
 
-from .docker_compose_interface import dc_state
-from .env_types import AsIs
-from .env_types import ComposeStateHandler
-from .env_types import Env
-from .env_types import Environment
-from .env_types import EventStage
-from .env_types import FuncHandler
-from .env_types import Service
-from .env_types import ServiceMode
-from .exec_types import EMPTY_ID
-from .exec_types import EnvConfigComposeInstance
-from .exec_types import EnvConfigInstance
-from .output import CONSOLE
-from .styles import Style
+from maxwelld.core.docker_compose_interface import dc_state
+from maxwelld.env_description.env_types import AsIs
+from maxwelld.env_description.env_types import ComposeStateHandler
+from maxwelld.env_description.env_types import Env
+from maxwelld.env_description.env_types import Environment
+from maxwelld.env_description.env_types import EventStage
+from maxwelld.env_description.env_types import FuncHandler
+from maxwelld.env_description.env_types import Service
+from maxwelld.env_description.env_types import ServiceMode
+from maxwelld.core.exec_types import EMPTY_ID
+from maxwelld.core.exec_types import EnvConfigComposeInstance
+from maxwelld.core.exec_types import EnvConfigInstance
+from maxwelld.output import CONSOLE
+from maxwelld.output.styles import Style
 
 
 def make_env_service_name(service, env_id):
