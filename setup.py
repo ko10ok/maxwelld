@@ -13,7 +13,7 @@ HERE = pathlib.Path(__file__).parent
 README = open("README.md").read()
 setup(
     name="maxwelld",
-    version="0.0.21",
+    version="0.1.0",
     description="docker compose testing env orchestrator",
     long_description=README,
     long_description_content_type="text/markdown",
