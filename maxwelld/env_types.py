@@ -49,6 +49,12 @@ class FuncHandler(NamedTuple):
     func: Callable
 
 
+class ComposeStateHandler(NamedTuple):
+    stage: EventStage
+    func: Callable[[Callable, List], None]
+    executor: str = None
+
+
 class ServiceMode(Enum):
     ON = auto()
     OFF = auto()
@@ -59,7 +65,7 @@ class ServiceMode(Enum):
 class Service(NamedTuple):
     name: str
     env: Env = Env()
-    events_handlers: List[Handler | FuncHandler] = []
+    events_handlers: List[Handler | FuncHandler | ComposeStateHandler] = []
     mode: ServiceMode = ServiceMode.ON
 
     def __eq__(self, other):

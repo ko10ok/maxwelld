@@ -4,6 +4,7 @@ from typing import Type
 from typing import Union
 
 import vedro.events
+from rich.text import Text
 from vedro.core import ConfigType
 from vedro.core import Dispatcher
 from vedro.core import Plugin
@@ -17,9 +18,11 @@ from vedro.events import StartupEvent
 from .env_types import Environments
 from .exec_types import ComposeConfig
 from .maxwell_client import MaxwellDemonClient
+from .output import CONSOLE
 from .scenario_ordering import EnvTagsOrderer
 from .scenario_tag_processing import extract_scenario_config
 from .scenario_tag_processing import extract_scenarios_configs_set
+from .styles import Style
 from .up_new_env import setup_env_for_tests
 
 DEFAULT_COMPOSE = 'default'
@@ -47,7 +50,12 @@ class VedroMaxwellPlugin(Plugin):
         self._chosen_config_name_postfix: str = ''
 
     def _print_running_config(self):
-        print(f'Running {self._compose_choice_name} compose config: {self._compose_choice}')
+        CONSOLE.print(
+            Text('Running ', style=Style.info)
+            .append(Text(self._compose_choice_name, style=Style.mark))
+            .append(Text(' compose config: '))
+            .append(Text(str(self._compose_choice), style=Style.mark))
+        )
         if self._force_env_name:
             print(f'Overriding configuration for tests: {self._force_env_name}')
 

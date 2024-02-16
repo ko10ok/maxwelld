@@ -6,9 +6,13 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Union
 
+from rich.text import Text
+
 from .env_types import Environment
 from .exec_types import EMPTY_ID
 from .exec_types import EnvConfigInstance
+from .output import CONSOLE
+from .styles import Style
 from .up_new_env import actualize_in_flight
 from .up_new_env import down_in_flight_envs
 from .up_new_env import get_new_env_id
@@ -96,8 +100,6 @@ class MaxwellDemonService:
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
         ):
-
-
             if verbose:
                 print(f'Existing env for {name}: {self._started_envs[name]},'
                       f' no need to start again')
@@ -107,7 +109,10 @@ class MaxwellDemonService:
                       f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env
 
-        print('Starting new environment: ', name)
+        CONSOLE.print(
+            Text('Starting new environment: ', style=Style.info)
+            .append(Text(name, style=Style.mark))
+        )
         new_env_id = get_new_env_id()
         if parallelism_limit == 1:
             print(f'Using default service names with {parallelism_limit=}')
@@ -147,10 +152,13 @@ class MaxwellDemonService:
 
 
         # TODO should be transactional with file
-        print(f'New environment for {name} started: ', compose_files_instance)
+        CONSOLE.print(Text(f'New environment for {name} started'))
         if verbose:
             print(f'Config params: {unpack_services_env_template_params(env_config_instance.env)}')
-        print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
+        CONSOLE.print(
+            Text(f'Docker-compose access: > ', style=Style.info)
+            .append(Text(f'source ./env-tmp/{new_env_id}/.env', style=Style.mark_neutral))
+        )
 
         self.update_inflight_envs(
             name,

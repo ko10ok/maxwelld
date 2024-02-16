@@ -5,13 +5,17 @@ import shutil
 import subprocess
 import sys
 from copy import deepcopy
+from functools import partial
 from pathlib import Path
 from uuid import uuid4
 from warnings import warn
 
 import yaml
+from rich.text import Text
 
+from .docker_compose_interface import dc_state
 from .env_types import AsIs
+from .env_types import ComposeStateHandler
 from .env_types import Env
 from .env_types import Environment
 from .env_types import EventStage
@@ -21,6 +25,8 @@ from .env_types import ServiceMode
 from .exec_types import EMPTY_ID
 from .exec_types import EnvConfigComposeInstance
 from .exec_types import EnvConfigInstance
+from .output import CONSOLE
+from .styles import Style
 
 
 def make_env_service_name(service, env_id):
@@ -306,7 +312,10 @@ def print_state(execution_envs, in_docker_project_root):
 
 def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, except_containers: list[str]):
     services = list(dc_env_config.env_config_instance.env_services_map.values())
-    print(f'Starting services: {services}')
+    CONSOLE.print(
+        Text('Starting services: ', style=Style.info)
+        .append(Text(str(services), style=Style.good))
+    )
     if dc_env_config.env_config_instance.env_id == EMPTY_ID:
         for container in except_containers:
             if container in services:
@@ -350,6 +359,16 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
 
                 if isinstance(handler, FuncHandler):
                     handler.func()
+                    continue
+
+                if isinstance(handler, ComposeStateHandler):
+                    get_services_state = partial(dc_state, env=execution_envs, root=in_docker_project_root)
+                    # TODO migrate to non-0 return codes
+                    # TODO unify interface args kwargs
+                    res = handler.func(get_services_state, services)
+                    if res != 0:
+                        print(f'Не не получилось успешно обработать хук {handler}')
+                        sys.exit(res)
                     continue
 
                 target_service = dc_env_config.env_config_instance.env_services_map[
