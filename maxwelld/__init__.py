@@ -14,7 +14,7 @@ from .vedro_plugin import DEFAULT_COMPOSE
 from .vedro_plugin import VedroMaxwell
 from .dc_service_handler import wait_all_services_up
 
-__version__ = "0.0.21"
+__version__ = "0.1.0"
 __all__ = (
     'MaxwellDemonClient',
     'VedroMaxwell', 'DEFAULT_COMPOSE', 'ComposeConfig',
