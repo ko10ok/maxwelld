@@ -31,7 +31,7 @@ activate "Maxwell's Demon"
 "Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}
 "Maxwell's Demon" <-- "docker-compose(prefix=123)" : [ {service:status}, ... ]
 
-return status (=ask_later)
+return status{services} && not_done
 
 note right
 "up" procedure can be finished anytime
@@ -43,6 +43,7 @@ end note
 "Maxwell's Demon" <-- "docker-compose(prefix=123)"
 deactivate "Maxwell's Demon"
 
+== Env state final polling ==
 
 "Maxwell(Tests)" -> "Maxwell's Demon" : get_status(id=123)
 activate "Maxwell's Demon"
@@ -50,5 +51,5 @@ activate "Maxwell's Demon"
 "Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}
 "Maxwell's Demon" <-- "docker-compose(prefix=123)" : [ {service:status}, ... ]
 
-return status{services}
+return status{services} && done
 @enduml
