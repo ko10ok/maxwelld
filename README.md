@@ -42,3 +42,60 @@ class Config(vedro.Config):
             }
             project = os.environ.get('COMPOSE_PROJECT_NAME', default='some_project')
 ```
+
+## Architecture design draft
+```plantuml
+
+participant "Maxwell(Tests)"
+
+
+box Maxwell's Demon Container #lightblue
+participant "Maxwell's Demon"
+
+
+== Initialize startup of env ==
+
+"Maxwell(Tests)" -> "Maxwell's Demon" : up(id=123)
+note right
+{
+    << compose_files >>
+    << parallelism >> //  == 1?  ->  id=no_id
+}
+end note 
+activate "Maxwell's Demon"
+"Maxwell(Tests)" <-- "Maxwell's Demon" : ENV && << task scheduled >>
+
+"Maxwell's Demon" -> "docker-compose(prefix=123)" ** : 
+"Maxwell's Demon" -> "docker-compose(prefix=123)": up -d COMPOSE_FILE=<< compose_files >>
+activate "docker-compose(prefix=123)"
+
+
+== Env state polling ==
+
+"Maxwell(Tests)" -> "Maxwell's Demon" : get_status(id=123)
+activate "Maxwell's Demon"
+
+"Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}
+"Maxwell's Demon" <-- "docker-compose(prefix=123)" : [ {service:status}, ... ]
+
+return status (=ask_later)
+
+note right
+"up" procedure can be finished anytime
+end note
+
+
+"Maxwell's Demon" -> "docker-compose(prefix=123)": dc exec %service% hooks/migrations
+
+"Maxwell's Demon" <-- "docker-compose(prefix=123)"
+deactivate "Maxwell's Demon"
+
+
+"Maxwell(Tests)" -> "Maxwell's Demon" : get_status(id=123)
+activate "Maxwell's Demon"
+
+"Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}
+"Maxwell's Demon" <-- "docker-compose(prefix=123)" : [ {service:status}, ... ]
+
+return status{services}
+```
