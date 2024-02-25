@@ -1,10 +1,9 @@
 @startuml
-participant "Maxwell(Tests)"
+participant "Maxwell(Tests)" #lightgreen
 
 
 box Maxwell's Demon Container #lightblue
-participant "Maxwell's Demon"
-
+participant "Maxwell's Demon" #lightgreen
 
 == Initialize startup of env ==
 
@@ -18,10 +17,18 @@ end note
 activate "Maxwell's Demon"
 "Maxwell(Tests)" <-- "Maxwell's Demon" : ENV && << task scheduled >>
 
-"Maxwell's Demon" -> "docker-compose(prefix=123)" ** :
+
+participant "docker-compose(prefix=123)" #lightgreen
+"Maxwell's Demon" -> "docker-compose(prefix=123)" **:
+
 "Maxwell's Demon" -> "docker-compose(prefix=123)": up -d COMPOSE_FILE=<< compose_files >>
 activate "docker-compose(prefix=123)"
 
+box Host
+participant "Docker server" #lightgreen
+end box
+
+"docker-compose(prefix=123)" -> "Docker server"
 
 == Env state polling ==
 
