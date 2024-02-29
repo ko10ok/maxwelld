@@ -82,6 +82,12 @@ class Service(NamedTuple):
             mode=self.mode
         )
 
+    def as_dict(self):
+        return {
+            'name': self.name,
+            'env': dict(self.env),
+        }
+
 def remove_dups(*services: Service) -> List[Service]:
     result_services = []
     for service in reversed(services):
@@ -128,6 +134,11 @@ class Environment:  # TODO rename Environment
 
     def __hash__(self):
         return hash(self._name)
+
+    def as_json(self) -> list[dict]:
+        return [
+            service.as_dict() for service in self._services
+        ]
 
 
 class SingletonService(Service):

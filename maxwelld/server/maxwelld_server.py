@@ -4,7 +4,8 @@ import pickle
 from aiohttp import web
 from aiohttp.web_request import Request
 
-from maxwelld import MaxwellDemonService
+from maxwelld.core.service import MaxwellDemonService
+from maxwelld.server.commands import UP_PATH
 from maxwelld.server.request_types import RequestType
 
 routes = web.RouteTableDef()
@@ -25,6 +26,6 @@ async def index(request: Request) -> web.Response:
 
 app = web.Application()
 app.add_routes([
-    web.get('/v0/up', index),
+    web.get(UP_PATH, index),
 ])
 web.run_app(app, port=os.environ.get('PORT', 80))

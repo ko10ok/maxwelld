@@ -7,7 +7,7 @@ from typing import Iterator
 
 from rich.text import Text
 
-from .styles import Style
+from maxwelld.output.styles import Style
 
 
 class ComposeState:
@@ -66,6 +66,13 @@ class ServiceComposeState:
         service_string.append(Text('\n'))
         return service_string
 
+    def as_json(self):
+        return {
+            'name': self.name,
+            'state': self.state,
+            'health': self.health,
+            'status': self.status,
+        }
 
 class ServicesComposeState:
     def __init__(self, compose_status: str):
@@ -107,6 +114,8 @@ class ServicesComposeState:
     def __repr__(self):
         return f'{type(self).__name__}(<{self._services}>)'
 
+    def as_json(self) -> list[dict]:
+        return [service_status.as_json() for service_status in self._services]
 
 def dc_state(env, root) -> ServicesComposeState:
     status = subprocess.run(

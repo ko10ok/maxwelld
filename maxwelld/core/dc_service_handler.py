@@ -9,7 +9,7 @@ from .docker_compose_interface import ComposeHealth
 from .docker_compose_interface import ComposeState
 from .docker_compose_interface import ServiceComposeState
 from .docker_compose_interface import ServicesComposeState
-from maxwelld.output import CONSOLE
+from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
 
 

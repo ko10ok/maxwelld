@@ -13,6 +13,7 @@ from warnings import warn
 import yaml
 from rich.text import Text
 
+from maxwelld.client.types import EnvironmentId
 from maxwelld.core.docker_compose_interface import dc_state
 from maxwelld.env_description.env_types import AsIs
 from maxwelld.env_description.env_types import ComposeStateHandler
@@ -25,7 +26,7 @@ from maxwelld.env_description.env_types import ServiceMode
 from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EnvConfigComposeInstance
 from maxwelld.core.exec_types import EnvConfigInstance
-from maxwelld.output import CONSOLE
+from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
 
 
@@ -158,7 +159,7 @@ def prepare_services_env(env: Environment, services_map: dict) -> Environment:
     return new_env
 
 
-def get_new_env_id():
+def get_new_env_id() -> EnvironmentId:
     env_id = str(uuid4())[:4]
     return env_id
 

@@ -18,12 +18,12 @@ from vedro.events import StartupEvent
 from maxwelld.env_description.env_types import Environments
 from maxwelld.core.exec_types import ComposeConfig
 from maxwelld.client.maxwell_client import MaxwellDemonClient
-from maxwelld.output import CONSOLE
+from maxwelld.output.console import CONSOLE
 from maxwelld.vedro_plugin.scenario_ordering import EnvTagsOrderer
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenario_config
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenarios_configs_set
 from maxwelld.output.styles import Style
-from maxwelld.core.up_new_env import setup_env_for_tests
+from maxwelld.core.utils import setup_env_for_tests
 
 DEFAULT_COMPOSE = 'default'
 
