@@ -1,28 +1,16 @@
 import json
 import os
+import pickle
 import shutil
 from copy import deepcopy
-from pathlib import Path
-from pathlib import Path
-from pathlib import Path
 from pathlib import Path
 from typing import Union
 
 from rich.text import Text
-from rich.text import Text
-from rich.text import Text
-from rich.text import Text
-from rich.text import Text
 
 from maxwelld import Environment
-from maxwelld import Environment
-from maxwelld import Environment
 from maxwelld.client.types import EnvironmentId
-from maxwelld.core.docker_compose_interface import ServicesComposeState
 from maxwelld.core.docker_compose_interface import dc_state
-from maxwelld.core.exec_types import EMPTY_ID
-from maxwelld.core.exec_types import EMPTY_ID
-from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EnvConfigInstance
 from maxwelld.core.utils import actualize_in_flight
@@ -31,16 +19,11 @@ from maxwelld.core.utils import get_new_env_id
 from maxwelld.core.utils import make_debug_bash_env
 from maxwelld.core.utils import make_env_compose_instance_files
 from maxwelld.core.utils import make_env_config_instance
-from maxwelld.core.utils import make_env_config_instance
 from maxwelld.core.utils import run_env
 from maxwelld.core.utils import unpack_services_env_template_params
-from maxwelld.core.utils import unpack_services_env_template_params
+from maxwelld.data_utils.bytes_pickle import base64_pickled
+from maxwelld.data_utils.bytes_pickle import debase64_pickled
 from maxwelld.output.console import CONSOLE
-from maxwelld.output.console import CONSOLE
-from maxwelld.output.console import CONSOLE
-from maxwelld.output.styles import Style
-from maxwelld.output.styles import Style
-from maxwelld.output.styles import Style
 from maxwelld.output.styles import Style
 
 
@@ -79,7 +62,7 @@ class MaxwellDemonService:
             'params': {
                 'name': name,
                 'compose_files': compose_files,
-                'config_template': config_template.as_json()
+                'config_template': base64_pickled(config_template)
             }
         }
         with open(self.env_file_path, 'w') as envs_file:
@@ -108,14 +91,35 @@ class MaxwellDemonService:
             # )
             # make_debug_bash_env(compose_files_instance, self.host_env_tmp_directory)
             #
-
             return env_config_instance
 
         return None
 
+    def get_existing_inflight_env_by_id(self, env_id: EnvironmentId) -> Union[EnvConfigInstance, None]:
+        for env_name in self._started_envs:
+            if self._started_envs[env_name]['env_id'] == env_id:
+                config_template = debase64_pickled(self._started_envs[env_name]['params']['config_template'])
+                env_config_instance = make_env_config_instance(
+                    env_template=config_template,
+                    env_id=env_id
+                )
+                return env_config_instance
+        return None
+
+    def check_one_env_limits(self):
+        in_flight = deepcopy(self._started_envs)
+        for env_name, env_params in in_flight.items():
+            if env_params['env_id'] == EMPTY_ID:  # different env starts EMPTY_ID
+                down_in_flight_envs(
+                    self.tmp_envs_path,
+                    EMPTY_ID,
+                    self.in_docker_project_root_path,
+                    except_containers=self._non_stop_containers
+                )
+                del self._started_envs[env_name]
+
     def up_compose(self, name: str, config_template: Environment, compose_files: str,
-                   isolation=None, parallelism_limit=None, verbose=False) -> Environment:
-        # Envs -> Env -> CheckExisting -> TestEnv -> ComposeFiles -> run()
+                   isolation=None, parallelism_limit=None, verbose=False) -> EnvironmentId:
 
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
@@ -127,7 +131,7 @@ class MaxwellDemonService:
                       f' {unpack_services_env_template_params(existing_inflight_env.env)}')
                 print(f'Docker-compose access: '
                       f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
-            return existing_inflight_env.env
+            return existing_inflight_env.env_id
 
         CONSOLE.print(
             Text('Starting new environment: ', style=Style.info)
@@ -137,14 +141,7 @@ class MaxwellDemonService:
         if parallelism_limit == 1:
             print(f'Using default service names with {parallelism_limit=}')
             new_env_id = EMPTY_ID
-
-        if new_env_id == EMPTY_ID:
-            in_flight = deepcopy(self._started_envs)
-            for env_name, env_params in in_flight.items():
-                if env_params == {'env_id': EMPTY_ID}:  # different env starts EMPTY_ID
-                    down_in_flight_envs(self.tmp_envs_path, EMPTY_ID, self.in_docker_project_root_path, except_containers=self._non_stop_containers)
-                    del self._started_envs[env_name]
-
+            self.check_one_env_limits()
         # TODO limit to parallelism_limit via while len(self._started_envs)
 
         env_config_instance = make_env_config_instance(
@@ -187,18 +184,17 @@ class MaxwellDemonService:
             env_id=new_env_id,
         )
 
-        return env_config_instance.env
+        return env_config_instance.env_id
 
-    def status(self, env_id: str, config_template: Environment) -> (Environment, list[dict]):
+    def env(self, env_id: str) -> (Environment, bytes):
+        env_config_instance = self.get_existing_inflight_env_by_id(env_id)
+        return pickle.dumps(env_config_instance.env)
+
+    def status(self, env_id: str) -> bytes:
         execution_envs = dict(os.environ)
         for env_name in self._started_envs:
             if self._started_envs[env_name]['env_id'] == env_id:
                 execution_envs['COMPOSE_FILE'] = self._started_envs[env_name]['params']['compose_files']
         services_status = dc_state(env=execution_envs, root=self.in_docker_project_root_path)
 
-        env_config_instance = make_env_config_instance(
-            env_template=config_template,
-            env_id=env_id
-        )
-
-        return env_config_instance.env, services_status.as_json()
+        return pickle.dumps(services_status)

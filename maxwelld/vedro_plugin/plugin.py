@@ -1,4 +1,5 @@
 import sys
+from functools import partial
 from sys import exit
 from typing import Type
 from typing import Union
@@ -15,6 +16,7 @@ from vedro.events import ConfigLoadedEvent
 from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
+from maxwelld.core.dc_service_handler import wait_all_services_up
 from maxwelld.env_description.env_types import Environments
 from maxwelld.core.exec_types import ComposeConfig
 from maxwelld.client.maxwell_client import MaxwellDemonClient
@@ -48,6 +50,7 @@ class VedroMaxwellPlugin(Plugin):
         self._compose_choice: Union[ComposeConfig, None] = self._compose_configs[self._compose_choice_name]
         self._force_env_name: Union[str, None] = None
         self._chosen_config_name_postfix: str = ''
+        self._checked_envs = []
 
     def _print_running_config(self):
         CONSOLE.print(
@@ -117,16 +120,23 @@ class VedroMaxwellPlugin(Plugin):
                 print(f'Overriding tests config:{config_env_name} by --md-env={self._force_env_name}')
             config_env_name = self._force_env_name
 
-        env = getattr(self._envs, config_env_name)
-        in_flight_env = self._maxwell_demon.up_compose(
+        env_template = getattr(self._envs, config_env_name)
+        in_flight_env_id = self._maxwell_demon.up_compose(
             name=config_env_name + self._chosen_config_name_postfix,
-            config_template=env,
+            config_template=env_template,
             compose_files=self._compose_choice.compose_files,
             parallelism_limit=self._compose_choice.parallel_env_limit,
             verbose=self._verbose,
         )
+        environment = self._maxwell_demon.env(in_flight_env_id)
 
-        setup_env_for_tests(in_flight_env)
+        # TODO output only on first up and failed
+        if in_flight_env_id not in self._checked_envs:
+            get_status = partial(self._maxwell_demon.status, env_id=in_flight_env_id)
+            wait_all_services_up()(get_services_state=get_status, services=environment.get_services())
+            self._checked_envs.append(in_flight_env_id)
+
+        setup_env_for_tests(environment)
 
     def handle_arg_parse(self, event: ArgParseEvent) -> None:
         group = event.arg_parser.add_argument_group("Maxwell Demon")

@@ -10,12 +10,12 @@ participant "Maxwell's Demon" #lightgreen
 "Maxwell(Tests)" -> "Maxwell's Demon" : up(id=123)
 note right
 {
+    << envs >>
     << compose_files >>
-    << parallelism >> //  == 1?  ->  id=no_id
+    << parallelism >> # == 1?  ->  id=no_id
 }
 end note
 activate "Maxwell's Demon"
-"Maxwell(Tests)" <-- "Maxwell's Demon" : ENV && << task scheduled >>
 
 
 participant "docker-compose(prefix=123)" #lightgreen
@@ -30,6 +30,10 @@ end box
 
 "docker-compose(prefix=123)" -> "Docker server"
 
+"Maxwell(Tests)" <-- "Maxwell's Demon" : ENV && << task scheduled >>
+deactivate "Maxwell's Demon"
+
+
 == Env state polling ==
 
 "Maxwell(Tests)" -> "Maxwell's Demon" : get_status(id=123)
@@ -40,15 +44,12 @@ activate "Maxwell's Demon"
 
 return status{services} && not_done
 
-note right
-"up" procedure can be finished anytime
-end note
-
 
 "Maxwell's Demon" -> "docker-compose(prefix=123)": dc exec %service% hooks/migrations
 
 "Maxwell's Demon" <-- "docker-compose(prefix=123)"
-deactivate "Maxwell's Demon"
+
+
 
 == Env state final polling ==
 

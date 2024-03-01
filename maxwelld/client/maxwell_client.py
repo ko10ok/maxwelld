@@ -1,3 +1,6 @@
+import pickle
+
+from maxwelld.core.docker_compose_interface import ServicesComposeState
 from maxwelld.core.service import MaxwellDemonService
 from maxwelld.client.types import EnvironmentId
 from maxwelld.env_description.env_types import Environment
@@ -10,14 +13,18 @@ class MaxwellDemonClient:
         self._server = MaxwellDemonService(project, self._non_stop_containers)
 
     def up_compose(self, name, config_template: Environment, compose_files: str, isolation=None,
-                   parallelism_limit=None, verbose=False) -> Environment:
+                   parallelism_limit=None, verbose=False) -> EnvironmentId:
         return self._server.up_compose(
             name, config_template, compose_files, isolation, parallelism_limit, verbose
         )
 
-    def status(self, env_id: EnvironmentId, config_template: Environment) -> (Environment, list[dict]):
-        env, status = self._server.status(env_id=env_id, config_template=config_template)
-        return env, status
+    def env(self, env_id: EnvironmentId) -> Environment:
+        env = self._server.env(env_id=env_id)
+        return pickle.loads(env)
+
+    def status(self, env_id: EnvironmentId) -> ServicesComposeState:
+        status = self._server.status(env_id=env_id)
+        return pickle.loads(status)
 
     def list_current_in_flight_envs(self, *args, **kwargs):
         raise NotImplementedError()
