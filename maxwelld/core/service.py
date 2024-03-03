@@ -21,14 +21,14 @@ from maxwelld.core.utils import make_env_compose_instance_files
 from maxwelld.core.utils import make_env_config_instance
 from maxwelld.core.utils import run_env
 from maxwelld.core.utils import unpack_services_env_template_params
-from maxwelld.data_utils.bytes_pickle import base64_pickled
-from maxwelld.data_utils.bytes_pickle import debase64_pickled
+from maxwelld.helpers.bytes_pickle import base64_pickled
+from maxwelld.helpers.bytes_pickle import debase64_pickled
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
 
 
 class MaxwellDemonService:
-    def __init__(self, project, non_stop_containers):
+    def __init__(self, project: str, non_stop_containers: list[str]):
         assert shutil.which("docker"), 'Docker not installed'
         assert shutil.which("docker-compose"), 'Docker-compose not installed'
         assert os.environ.get('COMPOSE_FILES_DIRECTORY'), \
@@ -125,11 +125,11 @@ class MaxwellDemonService:
             name, config_template, compose_files
         ):
             if verbose:
-                print(f'Existing env for {name}: {self._started_envs[name]},'
+                CONSOLE.print(f'Existing env for {name}: {self._started_envs[name]},'
                       f' no need to start again')
-                print(f'Config params:'
+                CONSOLE.print(f'Config params:'
                       f' {unpack_services_env_template_params(existing_inflight_env.env)}')
-                print(f'Docker-compose access: '
+                CONSOLE.print(f'Docker-compose access: '
                       f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env_id
 
@@ -139,7 +139,7 @@ class MaxwellDemonService:
         )
         new_env_id = get_new_env_id()
         if parallelism_limit == 1:
-            print(f'Using default service names with {parallelism_limit=}')
+            CONSOLE.print(f'Using default service names with {parallelism_limit=}')
             new_env_id = EMPTY_ID
             self.check_one_env_limits()
         # TODO limit to parallelism_limit via while len(self._started_envs)
@@ -160,7 +160,7 @@ class MaxwellDemonService:
         )
 
         make_debug_bash_env(compose_files_instance, self.host_env_tmp_directory)
-        print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
+        CONSOLE.print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
 
         # TODO uncomment
         in_flight_env = run_env(
@@ -171,7 +171,7 @@ class MaxwellDemonService:
         # TODO should be transactional with file
         CONSOLE.print(Text(f'New environment for {name} started'))
         if verbose:
-            print(f'Config params: {unpack_services_env_template_params(env_config_instance.env)}')
+            CONSOLE.print(f'Config params: {unpack_services_env_template_params(env_config_instance.env)}')
         CONSOLE.print(
             Text(f'Docker-compose access: > ', style=Style.info)
             .append(Text(f'source ./env-tmp/{new_env_id}/.env', style=Style.mark_neutral))

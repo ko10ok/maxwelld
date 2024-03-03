@@ -1,5 +1,6 @@
 import sys
 from functools import partial
+from functools import reduce
 from sys import exit
 from typing import Type
 from typing import Union
@@ -16,16 +17,16 @@ from vedro.events import ConfigLoadedEvent
 from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
-from maxwelld.core.dc_service_handler import wait_all_services_up
-from maxwelld.env_description.env_types import Environments
-from maxwelld.core.exec_types import ComposeConfig
 from maxwelld.client.maxwell_client import MaxwellDemonClient
+from maxwelld.core.dc_service_handler import wait_all_services_up
+from maxwelld.core.exec_types import ComposeConfig
+from maxwelld.core.utils import setup_env_for_tests
+from maxwelld.env_description.env_types import Environments
 from maxwelld.output.console import CONSOLE
+from maxwelld.output.styles import Style
 from maxwelld.vedro_plugin.scenario_ordering import EnvTagsOrderer
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenario_config
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenarios_configs_set
-from maxwelld.output.styles import Style
-from maxwelld.core.utils import setup_env_for_tests
 
 DEFAULT_COMPOSE = 'default'
 
@@ -38,16 +39,20 @@ class VedroMaxwellPlugin(Plugin):
         self._project = config.project
         self._non_stop_containers = config.non_stop_containers
         self._maxwell_demon = MaxwellDemonClient(
+            host="http://127.0.0.1",
             project=self._project,
             non_stop_containers=self._non_stop_containers
         )
+        if config.maxwell_demon_client:
+            self._maxwell_demon = config.maxwell_demon_client
         self._list_envs = None
 
         self._compose_configs: dict[str, ComposeConfig] = config.compose_cfgs
         assert DEFAULT_COMPOSE in self._compose_configs, \
             'Need to set up at least {DEFAULT_COMPOSE: ComposeConfig(...)} config'
         self._compose_choice_name: str = DEFAULT_COMPOSE
-        self._compose_choice: Union[ComposeConfig, None] = self._compose_configs[self._compose_choice_name]
+        self._compose_choice: Union[ComposeConfig, None] \
+            = self._compose_configs[self._compose_choice_name]
         self._force_env_name: Union[str, None] = None
         self._chosen_config_name_postfix: str = ''
         self._checked_envs = []
@@ -60,7 +65,7 @@ class VedroMaxwellPlugin(Plugin):
             .append(Text(str(self._compose_choice), style=Style.mark))
         )
         if self._force_env_name:
-            print(f'Overriding configuration for tests: {self._force_env_name}')
+            CONSOLE.print(f'Overriding configuration for tests: {self._force_env_name}')
 
     def subscribe(self, dispatcher: Dispatcher) -> None:
         if not self._enabled:
@@ -75,16 +80,22 @@ class VedroMaxwellPlugin(Plugin):
     def on_config_loaded(self, event: ConfigLoadedEvent) -> None:
         self._global_config: ConfigType = event.config
 
-    def handle_scenarios(self, event: StartupEvent) -> None:
+    async def handle_scenarios(self, event: StartupEvent) -> None:
         needed_configs = extract_scenarios_configs_set(event.scheduler.scheduled)
-        print('Tests requests configs:', needed_configs)
+
+        CONSOLE.print(
+            Text(f'Tests requests configs: ') + reduce(lambda a, b: a + Text(', ', style=Style.regular) + b, [
+                Text(f'{cfg}', style=Style.mark) for cfg in needed_configs
+            ])
+        )
 
         if self._verbose:
-            print(self._envs)
+            CONSOLE.print(self._envs)
 
         if self._force_env_name:
             config_env_name = self._force_env_name
-            print(f'Overriding tests config:{needed_configs} by --env={self._force_env_name}')
+            CONSOLE.print(
+                f'Overriding tests config:{needed_configs} by --env={self._force_env_name}')
             needed_configs = {config_env_name}
 
         if self._list_envs:
@@ -102,38 +113,40 @@ class VedroMaxwellPlugin(Plugin):
         ):
             for cfg_name in list(needed_configs):
                 env = getattr(self._envs, cfg_name)
-                self._maxwell_demon.up_compose(
+                await self._maxwell_demon.up(
                     name=cfg_name + self._chosen_config_name_postfix,
                     config_template=env,
                     compose_files=self._compose_choice.compose_files,
                     parallelism_limit=self._compose_choice.parallel_env_limit,
-                    verbose=self._verbose
                 )
 
-    def handle_setup_test_config(self, event: ScenarioRunEvent):
+    async def handle_setup_test_config(self, event: ScenarioRunEvent):
         config_env_name = extract_scenario_config(event.scenario_result.scenario)
         if self._verbose:
-            print(f'Test request {config_env_name} config')
+            CONSOLE.print(f'Test request {config_env_name} config')
 
         if self._force_env_name:
             if self._verbose:
-                print(f'Overriding tests config:{config_env_name} by --md-env={self._force_env_name}')
+                CONSOLE.print(f'Overriding tests config: '
+                              f'{config_env_name} by --md-env={self._force_env_name}')
             config_env_name = self._force_env_name
 
+        await self._maxwell_demon.healthcheck()
+
         env_template = getattr(self._envs, config_env_name)
-        in_flight_env_id = self._maxwell_demon.up_compose(
+        in_flight_env_id = await self._maxwell_demon.up(
             name=config_env_name + self._chosen_config_name_postfix,
             config_template=env_template,
             compose_files=self._compose_choice.compose_files,
             parallelism_limit=self._compose_choice.parallel_env_limit,
-            verbose=self._verbose,
         )
         environment = self._maxwell_demon.env(in_flight_env_id)
 
         # TODO output only on first up and failed
         if in_flight_env_id not in self._checked_envs:
             get_status = partial(self._maxwell_demon.status, env_id=in_flight_env_id)
-            wait_all_services_up()(get_services_state=get_status, services=environment.get_services())
+            wait_all_services_up()(get_services_state=get_status,
+                                   services=environment.get_services())
             self._checked_envs.append(in_flight_env_id)
 
         setup_env_for_tests(environment)
@@ -205,7 +218,7 @@ class VedroMaxwell(PluginConfig):
     envs: Environments = None
 
     # Maxwell Demon To control the world
-    # maxwell_demon: MaxwellDemonClient = None
+    maxwell_demon_client: MaxwellDemonClient = None
 
     # ComposeConfig set of compose files and defaulr parallelism restrictions
     compose_cfgs: dict[str, ComposeConfig] = None

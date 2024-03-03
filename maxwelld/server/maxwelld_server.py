@@ -1,31 +1,20 @@
 import os
-import pickle
 
 from aiohttp import web
-from aiohttp.web_request import Request
 
-from maxwelld.core.service import MaxwellDemonService
+from maxwelld.server.commands import HEALTHCHECK
 from maxwelld.server.commands import UP_PATH
-from maxwelld.server.request_types import RequestType
+from maxwelld.server.handlers.healthcheck import healthcheck
+from maxwelld.server.handlers.up import up_compose
 
 routes = web.RouteTableDef()
 
-
-async def index(request: Request) -> web.Response:
-    params: RequestType = pickle.loads(await request.read())
-
-    env = MaxwellDemonService(os.environ['COMPOSE_PROJECT_NAME'], request).up_compose(
-        name=params['name'],
-        config_template=params['config_template'],
-        compose_files=params['compose_files'],
-        isolation=params['isolation'],
-        parallelism_limit=params['parallelism_limit'],
-    )
-    return web.json_response(data=pickle.dumps(env), status=200)
-
-
 app = web.Application()
 app.add_routes([
-    web.get(UP_PATH, index),
+    web.get(HEALTHCHECK, healthcheck),
+    web.post(UP_PATH, up_compose),
 ])
-web.run_app(app, port=os.environ.get('PORT', 80))
+
+
+def run_server():
+    web.run_app(app, port=os.environ.get('PORT', 80))
