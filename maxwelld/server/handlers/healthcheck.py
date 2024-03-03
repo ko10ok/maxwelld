@@ -3,8 +3,8 @@ import os
 from aiohttp import web
 from aiohttp.web_request import Request
 
-from maxwelld import version
 from maxwelld.core.service import MaxwellDemonService
+from maxwelld.version import get_version
 
 
 async def healthcheck(request: Request) -> web.Response:
@@ -18,5 +18,5 @@ async def healthcheck(request: Request) -> web.Response:
 
     return web.json_response({
         'status': 'ok',
-        'version': version.version
+        'version': get_version()
     })

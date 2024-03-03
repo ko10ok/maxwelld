@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 import shutil
 from copy import deepcopy
 from pathlib import Path
@@ -8,7 +7,6 @@ from typing import Union
 
 from rich.text import Text
 
-from maxwelld import Environment
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.docker_compose_interface import ServicesComposeState
 from maxwelld.core.docker_compose_interface import dc_state
@@ -22,6 +20,7 @@ from maxwelld.core.utils import make_env_compose_instance_files
 from maxwelld.core.utils import make_env_config_instance
 from maxwelld.core.utils import run_env
 from maxwelld.core.utils import unpack_services_env_template_params
+from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
 from maxwelld.output.console import CONSOLE
@@ -127,11 +126,11 @@ class MaxwellDemonService:
         ):
             if verbose:
                 CONSOLE.print(f'Existing env for {name}: {self._started_envs[name]},'
-                      f' no need to start again')
+                              f' no need to start again')
                 CONSOLE.print(f'Config params:'
-                      f' {unpack_services_env_template_params(existing_inflight_env.env)}')
+                              f' {unpack_services_env_template_params(existing_inflight_env.env)}')
                 CONSOLE.print(f'Docker-compose access: '
-                      f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
+                              f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env_id
 
         CONSOLE.print(
@@ -167,7 +166,6 @@ class MaxwellDemonService:
         in_flight_env = run_env(
             compose_files_instance, self.in_docker_project_root_path, self._non_stop_containers
         )
-
 
         # TODO should be transactional with file
         CONSOLE.print(Text(f'New environment for {name} started'))
