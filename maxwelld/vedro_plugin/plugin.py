@@ -81,6 +81,16 @@ class VedroMaxwellPlugin(Plugin):
     def on_config_loaded(self, event: ConfigLoadedEvent) -> None:
         self._global_config: ConfigType = event.config
 
+
+    async def wait_env_ready(self, env_id) -> None:
+        environment = await self._maxwell_demon.env(env_id)
+
+        # TODO output only on first up and failed
+        await self._wait_all_service_func(
+            get_services_state=partial(self._maxwell_demon.status, env_id=env_id),
+            services=environment.get_services()
+        )
+
     async def handle_scenarios(self, event: StartupEvent) -> None:
         needed_configs = extract_scenarios_configs_set(event.scheduler.scheduled)
 
@@ -119,12 +129,14 @@ class VedroMaxwellPlugin(Plugin):
                     .append(' config for tests ...')
                 )
                 env = getattr(self._envs, cfg_name)
-                await self._maxwell_demon.up(
+                env_id, new = await self._maxwell_demon.up(
                     name=cfg_name + self._chosen_config_name_postfix,
                     config_template=env,
                     compose_files=self._compose_choice.compose_files,
                     parallelism_limit=self._compose_choice.parallel_env_limit,
                 )
+                if new:
+                    await self.wait_env_ready(env_id=env_id)
 
     async def handle_setup_test_config(self, event: ScenarioRunEvent):
         config_env_name = extract_scenario_config(event.scenario_result.scenario)
@@ -140,22 +152,16 @@ class VedroMaxwellPlugin(Plugin):
         await self._maxwell_demon.healthcheck()
 
         env_template = getattr(self._envs, config_env_name)
-        in_flight_env_id = await self._maxwell_demon.up(
+        env_id, new = await self._maxwell_demon.up(
             name=config_env_name + self._chosen_config_name_postfix,
             config_template=env_template,
             compose_files=self._compose_choice.compose_files,
             parallelism_limit=self._compose_choice.parallel_env_limit,
         )
-        environment = await self._maxwell_demon.env(in_flight_env_id)
+        if new:
+            await self.wait_env_ready(env_id=env_id)
 
-        # TODO output only on first up and failed
-        if in_flight_env_id not in self._checked_envs:
-            await self._wait_all_service_func(
-                get_services_state=partial(self._maxwell_demon.status, env_id=in_flight_env_id),
-                services=environment.get_services()
-            )
-            self._checked_envs.append(in_flight_env_id)
-
+        environment = await self._maxwell_demon.env(env_id)
         setup_env_for_tests(environment)
 
     def handle_arg_parse(self, event: ArgParseEvent) -> None:

@@ -119,7 +119,7 @@ class MaxwellDemonService:
                 del self._started_envs[env_name]
 
     def up_compose(self, name: str, config_template: Environment, compose_files: str,
-                   isolation=None, parallelism_limit=None, verbose=False) -> EnvironmentId:
+                   isolation=None, parallelism_limit=None, verbose=False) -> tuple[EnvironmentId, bool]:
 
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
@@ -131,7 +131,7 @@ class MaxwellDemonService:
                               f' {unpack_services_env_template_params(existing_inflight_env.env)}')
                 CONSOLE.print(f'Docker-compose access: '
                               f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
-            return existing_inflight_env.env_id
+            return existing_inflight_env.env_id, False
 
         CONSOLE.print(
             Text('Starting new environment: ', style=Style.info)
@@ -183,7 +183,7 @@ class MaxwellDemonService:
             env_id=new_env_id,
         )
 
-        return env_config_instance.env_id
+        return env_config_instance.env_id, True
 
     def env(self, env_id: str) -> Environment:
         env_config_instance = self.get_existing_inflight_env_by_id(env_id)

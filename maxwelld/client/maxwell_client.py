@@ -35,14 +35,8 @@ class MaxwellDemonClient:
                 assert 'status' in state, response
                 assert state['status'] == 'ok', response
 
-    def up_compose(self, name, config_template: Environment, compose_files: str, isolation=None,
-                   parallelism_limit=None, verbose=False) -> EnvironmentId:
-        return self._server.up_compose(
-            name, config_template, compose_files, isolation, parallelism_limit, verbose
-        )
-
     async def up(self, name, config_template: Environment, compose_files: str, isolation=None,
-                 parallelism_limit=None) -> EnvironmentId:
+                 parallelism_limit=None) -> tuple[EnvironmentId, bool]:
         url = f'{self._server_url}{UP_PATH}'
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=UpRequestParams(
@@ -55,7 +49,7 @@ class MaxwellDemonClient:
             )) as response:
                 assert response.status == 200, response
                 response_body = UpResponseParams(**await response.json())
-                return response_body['env_id']
+                return response_body['env_id'], response_body['new']
 
     async def env(self, env_id: EnvironmentId) -> Environment:
         url = f'{self._server_url}{ENV_PATH}'
