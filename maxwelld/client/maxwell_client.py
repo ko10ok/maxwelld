@@ -1,4 +1,5 @@
 import aiohttp
+from rtry import retry
 
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.docker_compose_interface import ServicesComposeState
@@ -35,6 +36,7 @@ class MaxwellDemonClient:
                 assert 'status' in state, response
                 assert state['status'] == 'ok', response
 
+    @retry(attempts=5, delay=0.5, swallow=Exception)
     async def up(self, name, config_template: Environment, compose_files: str, isolation=None,
                  parallelism_limit=None) -> tuple[EnvironmentId, bool]:
         url = f'{self._server_url}{UP_PATH}'
@@ -51,6 +53,7 @@ class MaxwellDemonClient:
                 response_body = UpResponseParams(**await response.json())
                 return response_body['env_id'], response_body['new']
 
+    @retry(attempts=5, delay=0.5, swallow=Exception)
     async def env(self, env_id: EnvironmentId) -> Environment:
         url = f'{self._server_url}{ENV_PATH}'
         async with aiohttp.ClientSession() as session:
@@ -59,6 +62,7 @@ class MaxwellDemonClient:
                 response_body = EnvResponseParams(**await response.json())
                 return debase64_pickled(response_body['env'])
 
+    @retry(attempts=5, delay=0.5, swallow=Exception)
     async def status(self, env_id: EnvironmentId) -> ServicesComposeState:
         url = f'{self._server_url}{STATUS_PATH}'
         async with aiohttp.ClientSession() as session:
