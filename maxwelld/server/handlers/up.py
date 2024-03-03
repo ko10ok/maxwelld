@@ -27,7 +27,7 @@ class UpResponseParams(TypedDict):
 
 async def up_compose(request: Request) -> web.Response:
     params: UpRequestParams = await request.json()
-    with UP_LOCK:
+    async with UP_LOCK:
         env_id = MaxwellDemonService(
             os.environ['COMPOSE_PROJECT_NAME'],
             params['non_stop_containers']
@@ -38,4 +38,4 @@ async def up_compose(request: Request) -> web.Response:
             isolation=params['isolation'],
             parallelism_limit=params['parallelism_limit'],
         )
-    return web.json_response(data=UpResponseParams(env_id=env_id), status=200)
+    return web.json_response(UpResponseParams(env_id=env_id), status=200)

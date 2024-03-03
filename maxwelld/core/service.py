@@ -10,6 +10,7 @@ from rich.text import Text
 
 from maxwelld import Environment
 from maxwelld.client.types import EnvironmentId
+from maxwelld.core.docker_compose_interface import ServicesComposeState
 from maxwelld.core.docker_compose_interface import dc_state
 from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EnvConfigInstance
@@ -186,15 +187,16 @@ class MaxwellDemonService:
 
         return env_config_instance.env_id
 
-    def env(self, env_id: str) -> (Environment, bytes):
+    def env(self, env_id: str) -> Environment:
         env_config_instance = self.get_existing_inflight_env_by_id(env_id)
-        return pickle.dumps(env_config_instance.env)
+        return env_config_instance.env
 
-    def status(self, env_id: str) -> bytes:
+    def status(self, env_id: str) -> ServicesComposeState:
         execution_envs = dict(os.environ)
         for env_name in self._started_envs:
             if self._started_envs[env_name]['env_id'] == env_id:
-                execution_envs['COMPOSE_FILE'] = self._started_envs[env_name]['params']['compose_files']
+                execution_envs['COMPOSE_FILE'] = \
+                    self._started_envs[env_name]['params']['compose_files']
         services_status = dc_state(env=execution_envs, root=self.in_docker_project_root_path)
 
-        return pickle.dumps(services_status)
+        return services_status

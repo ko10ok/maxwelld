@@ -1,11 +1,11 @@
 import sys
-from functools import partial
 from functools import reduce
 from sys import exit
 from typing import Type
 from typing import Union
 
 import vedro.events
+from functools import partial
 from rich.text import Text
 from vedro.core import ConfigType
 from vedro.core import Dispatcher
@@ -18,7 +18,7 @@ from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
 from maxwelld.client.maxwell_client import MaxwellDemonClient
-from maxwelld.core.dc_service_handler import wait_all_services_up
+from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 from maxwelld.core.exec_types import ComposeConfig
 from maxwelld.core.utils import setup_env_for_tests
 from maxwelld.env_description.env_types import Environments
@@ -56,6 +56,7 @@ class VedroMaxwellPlugin(Plugin):
         self._force_env_name: Union[str, None] = None
         self._chosen_config_name_postfix: str = ''
         self._checked_envs = []
+        self._wait_all_service_func = config.wait_all_service_func
 
     def _print_running_config(self):
         CONSOLE.print(
@@ -112,6 +113,11 @@ class VedroMaxwellPlugin(Plugin):
                 or (self._compose_choice.parallel_env_limit == len(needed_configs))
         ):
             for cfg_name in list(needed_configs):
+                CONSOLE.print(
+                    Text('Starting ')
+                    .append(Text(cfg_name, style=Style.mark))
+                    .append(' config for tests ...')
+                )
                 env = getattr(self._envs, cfg_name)
                 await self._maxwell_demon.up(
                     name=cfg_name + self._chosen_config_name_postfix,
@@ -123,7 +129,7 @@ class VedroMaxwellPlugin(Plugin):
     async def handle_setup_test_config(self, event: ScenarioRunEvent):
         config_env_name = extract_scenario_config(event.scenario_result.scenario)
         if self._verbose:
-            CONSOLE.print(f'Test request {config_env_name} config')
+            CONSOLE.print(f'Starting {config_env_name} config for test ...')
 
         if self._force_env_name:
             if self._verbose:
@@ -140,13 +146,14 @@ class VedroMaxwellPlugin(Plugin):
             compose_files=self._compose_choice.compose_files,
             parallelism_limit=self._compose_choice.parallel_env_limit,
         )
-        environment = self._maxwell_demon.env(in_flight_env_id)
+        environment = await self._maxwell_demon.env(in_flight_env_id)
 
         # TODO output only on first up and failed
         if in_flight_env_id not in self._checked_envs:
-            get_status = partial(self._maxwell_demon.status, env_id=in_flight_env_id)
-            wait_all_services_up()(get_services_state=get_status,
-                                   services=environment.get_services())
+            await self._wait_all_service_func(
+                get_services_state=partial(self._maxwell_demon.status, env_id=in_flight_env_id),
+                services=environment.get_services()
+            )
             self._checked_envs.append(in_flight_env_id)
 
         setup_env_for_tests(environment)
@@ -228,3 +235,6 @@ class VedroMaxwell(PluginConfig):
 
     # Containers which shouldn't stop
     non_stop_containers = ['e2e', 'dockersock']
+
+    # services waiter
+    wait_all_service_func = wait_all_services_up()

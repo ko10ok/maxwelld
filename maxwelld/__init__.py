@@ -13,7 +13,7 @@ from maxwelld.client.maxwell_client import MaxwellDemonClient
 from maxwelld.core.service import MaxwellDemonService
 from maxwelld.vedro_plugin.plugin import DEFAULT_COMPOSE
 from maxwelld.vedro_plugin.plugin import VedroMaxwell
-from maxwelld.core.dc_service_handler import wait_all_services_up
+from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 
 __version__ = "0.1.0"
 __all__ = (
