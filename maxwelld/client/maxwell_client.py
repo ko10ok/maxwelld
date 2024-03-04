@@ -3,7 +3,6 @@ from rtry import retry
 
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.docker_compose_interface import ServicesComposeState
-from maxwelld.core.service import MaxwellDemonService
 from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
@@ -22,7 +21,6 @@ class MaxwellDemonClient:
     def __init__(self, host, project, non_stop_containers, port=80):
         self._project = project
         self._non_stop_containers = non_stop_containers
-        self._server = MaxwellDemonService(project, self._non_stop_containers)
         self._server_host = host
         self._server_port = port
         self._server_url = f'{self._server_host}:{self._server_port}'
