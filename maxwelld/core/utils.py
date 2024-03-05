@@ -321,7 +321,7 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
         for container in except_containers:
             if container in services:
                 services.remove(container)
-        print(f'Starting services except original e2e, dockersock already started: {services}')
+        print(f'Starting services except original {except_containers} already started: {services}')
 
     execution_envs = dict(os.environ)
     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
