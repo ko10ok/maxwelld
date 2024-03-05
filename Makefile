@@ -18,3 +18,12 @@ build:
 .PHONY: publish
 publish:
 	twine upload dist/*
+
+.PHONY: build-image
+build-image:
+	echo maxwelld==`cat maxwelld/version` > docker/requirements.txt
+	docker build -f docker/Dockerfile ./docker -t ko10ok/maxwelld:`cat maxwelld/version`
+
+.PHONY: push-image
+push-image:
+	docker push ko10ok/maxwelld:`cat maxwelld/version`
