@@ -244,7 +244,7 @@ def get_compose_services(compose_files: str):
         dc_cfg = read_dc_file(filename)
         if 'services' in dc_cfg:
             services += list(dc_cfg['services'].keys())
-    return services
+    return list(set(services))
 
 
 def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
