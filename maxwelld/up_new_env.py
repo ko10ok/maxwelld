@@ -1,3 +1,4 @@
+import collections
 import json
 import os
 import shlex
@@ -11,6 +12,7 @@ from uuid import uuid4
 from warnings import warn
 
 import yaml
+from maxwelld import Handler
 from rich.text import Text
 
 from .docker_compose_interface import dc_state
@@ -245,6 +247,55 @@ def get_compose_services(compose_files: str):
             services += list(dc_cfg['services'].keys())
     return list(set(services))
 
+def parse_migration(migration: dict):
+    assert any(
+        [isinstance(migration, dict) and str(stage) in migration for stage in EventStage.get_all()]
+    ), (f'{migration} should be one of {EventStage.get_all()} stage hash. '
+        f'Example - {{stage: [cmd, params]}}')
+
+    assert len(migration) == 1, f'{migration} should have only one key - stage'
+    for stage, command in migration.items():
+        if isinstance(command[0], dict):
+            return Handler(
+                EventStage.AFTER_SERVICE_START,
+                cmd=[AsIs(cmd_part) for cmd_part in command[0]['cmd']],
+                executor=command[0]['executor']
+            )
+        if isinstance(command[0], list):
+            return Handler(
+                EventStage.AFTER_SERVICE_START,
+                cmd=[AsIs(cmd_part) for cmd_part in command[0]],
+                executor=command[1]
+            )
+        return Handler(
+            EventStage.AFTER_SERVICE_START,
+            cmd=[AsIs(cmd_part) for cmd_part in command]
+        )
+
+
+def parse_migrations(migrations: list[dict]):
+    assert isinstance(migrations, list), (f'{migrations} should be list '
+                                          f'of {{stage: [cmd, params]}}')
+    result_hooks = []
+    for migration in migrations:
+        result_hooks += [parse_migration(migration)]
+    return result_hooks
+
+def extract_services_inline_migration(compose_files: list[str]):
+    migrations = collections.defaultdict(lambda: [])
+    for filename in compose_files:
+        dc_cfg = read_dc_file(filename)
+        if 'services' in dc_cfg:
+            for service in dc_cfg['services']:
+                if service not in migrations:
+                    migrations[service] = []
+
+                if 'x-migration' in dc_cfg['services'][service]:
+                    migrations[service] += parse_migrations(
+                        dc_cfg['services'][service]['x-migration']
+                    )
+
+    return migrations
 
 def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
                                     compose_files: str,
@@ -273,11 +324,14 @@ def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
 
+    inline_migrations = extract_services_inline_migration(new_compose_files_list.split(':'))
+
     return EnvConfigComposeInstance(
         env_config_instance=env_config_instance,
         compose_files_source=compose_files,
         directory=dst,
-        compose_files=new_compose_files_list
+        compose_files=new_compose_files_list,
+        inline_migrations=inline_migrations
     )
 
 
@@ -353,7 +407,7 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
     # TODO move after service, after service up
     for current_stage in [EventStage.BEFORE_ALL, EventStage.BEFORE_SERVICE_START, EventStage.AFTER_SERVICE_START, EventStage.AFTER_ALL]:
         for service in dc_env_config.env_config_instance.env:
-            for handler in dc_env_config.env_config_instance.env[service].events_handlers:
+            for handler in dc_env_config.env_config_instance.env[service].events_handlers + dc_env_config.inline_migrations[service]:
                 if handler.stage != current_stage:
                     continue
 

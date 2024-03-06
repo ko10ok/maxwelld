@@ -32,11 +32,24 @@ class Env(Dict):
 
 
 class EventStage(Enum):
-    BEFORE_ALL = auto()
-    BEFORE_SERVICE_START = auto()
-    AFTER_SERVICE_START = auto()
-    AFTER_ALL = auto()
+    BEFORE_ALL = auto()             # TODO BEFORE_ALL -> before_all
+    BEFORE_SERVICE_START = auto()   #      BEFORE_SERVICE_START -> before_start
+    AFTER_SERVICE_START = auto()    #      AFTER_SERVICE_START -> after_start
+    AFTER_ALL = auto()              #      AFTER_ALL -> after_all
+                                    # due to inline migrations
+    def __repr__(self):
+        return self.name.lower()
+    def __str__(self):
+        return self.name.lower()
 
+    @classmethod
+    def get_all(self):
+        return [
+            self.BEFORE_ALL,
+            self.AFTER_SERVICE_START,
+            self.AFTER_ALL,
+            self.BEFORE_SERVICE_START
+        ]
 
 class Handler(NamedTuple):
     stage: EventStage
