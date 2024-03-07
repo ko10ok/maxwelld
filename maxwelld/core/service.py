@@ -124,9 +124,7 @@ class MaxwellDemonService:
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
         ):
-            CONSOLE.print(f'Existing env for {name}: {self._started_envs[name]},'
-                          f' no need to start again')
-            CONSOLE.print(f'Docker-compose access: '
+            CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
                           f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env_id, False
 
