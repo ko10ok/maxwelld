@@ -3,7 +3,6 @@ from maxwelld.core.exec_types import ComposeConfig
 from maxwelld.core.service import MaxwellDemonService
 from maxwelld.env_description.env_tools import off
 from maxwelld.env_description.env_types import AsIs
-from maxwelld.env_description.env_types import ComposeStateHandler
 from maxwelld.env_description.env_types import DEFAULT_ENV
 from maxwelld.env_description.env_types import Env
 from maxwelld.env_description.env_types import Environment
@@ -19,7 +18,7 @@ from maxwelld.version import get_version
 __version__ = get_version()
 __all__ = (
     'MaxwellDemonClient', 'VedroMaxwell', 'DEFAULT_COMPOSE', 'ComposeConfig',
-    'Environments', 'DEFAULT_ENV', 'Environment', 'Service', 'AsIs', 'ComposeStateHandler',
+    'Environments', 'DEFAULT_ENV', 'Environment', 'Service', 'AsIs',
     'Handler', 'EventStage', 'off',
     'wait_all_services_up',
 )

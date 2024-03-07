@@ -8,10 +8,10 @@ from typing import List
 from rich.text import Text
 from rtry import retry
 
-from maxwelld.core.docker_compose_interface import ComposeHealth
-from maxwelld.core.docker_compose_interface import ComposeState
-from maxwelld.core.docker_compose_interface import ServiceComposeState
-from maxwelld.core.docker_compose_interface import ServicesComposeState
+from maxwelld.core.compose_data_types import ComposeHealth
+from maxwelld.core.compose_data_types import ComposeState
+from maxwelld.core.compose_data_types import ServiceComposeState
+from maxwelld.core.compose_data_types import ServicesComposeState
 from maxwelld.helpers.countdown_counter import CountdownCounterKeeper
 from maxwelld.helpers.state_keeper import ServicesState
 from maxwelld.helpers.state_keeper import StateKeeper

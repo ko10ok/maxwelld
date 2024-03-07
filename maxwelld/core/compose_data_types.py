@@ -1,6 +1,4 @@
 import json
-import shlex
-import subprocess
 from dataclasses import dataclass
 from typing import Callable
 from typing import Iterator
@@ -74,6 +72,7 @@ class ServiceComposeState:
             'status': self.status,
         }
 
+
 class ServicesComposeState:
     def __init__(self, compose_status: str):
         self._services: list[ServiceComposeState] = [
@@ -116,12 +115,3 @@ class ServicesComposeState:
 
     def as_json(self) -> list[dict]:
         return [service_status.as_json() for service_status in self._services]
-
-def dc_state(env, root) -> ServicesComposeState:
-    status = subprocess.run(
-        shlex.split("docker-compose --project-directory . ps -a --format='{{json .}}'"),
-        env=env,
-        cwd=root,
-        capture_output=True,
-    )
-    return ServicesComposeState(status.stdout.decode('utf-8'))

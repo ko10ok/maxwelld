@@ -8,8 +8,8 @@ from typing import Union
 from rich.text import Text
 
 from maxwelld.client.types import EnvironmentId
-from maxwelld.core.docker_compose_interface import ServicesComposeState
-from maxwelld.core.docker_compose_interface import dc_state
+from maxwelld.core.compose_data_types import ServicesComposeState
+from maxwelld.core.compose_interface import dc_state
 from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EnvConfigInstance
 from maxwelld.core.utils import actualize_in_flight
@@ -124,13 +124,10 @@ class MaxwellDemonService:
         if existing_inflight_env := self.get_existing_inflight_env(
             name, config_template, compose_files
         ):
-            if verbose:
-                CONSOLE.print(f'Existing env for {name}: {self._started_envs[name]},'
-                              f' no need to start again')
-                CONSOLE.print(f'Config params:'
-                              f' {unpack_services_env_template_params(existing_inflight_env.env)}')
-                CONSOLE.print(f'Docker-compose access: '
-                              f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
+            CONSOLE.print(f'Existing env for {name}: {self._started_envs[name]},'
+                          f' no need to start again')
+            CONSOLE.print(f'Docker-compose access: '
+                          f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env_id, False
 
         CONSOLE.print(
@@ -196,5 +193,5 @@ class MaxwellDemonService:
                 execution_envs['COMPOSE_FILE'] = \
                     self._started_envs[env_name]['params']['compose_files']
         services_status = dc_state(env=execution_envs, root=self.in_docker_project_root_path)
-
+        assert isinstance(services_status, ServicesComposeState), "Can't execute docker-compose ps"
         return services_status

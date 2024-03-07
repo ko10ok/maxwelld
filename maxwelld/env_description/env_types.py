@@ -1,6 +1,5 @@
 from enum import Enum
 from enum import auto
-from typing import Callable
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -44,17 +43,6 @@ class Handler(NamedTuple):
     executor: str = None
 
 
-class FuncHandler(NamedTuple):
-    stage: EventStage
-    func: Callable
-
-
-class ComposeStateHandler(NamedTuple):
-    stage: EventStage
-    func: Callable[[Callable, List], None]
-    executor: str = None
-
-
 class ServiceMode(Enum):
     ON = auto()
     OFF = auto()
@@ -65,7 +53,7 @@ class ServiceMode(Enum):
 class Service(NamedTuple):
     name: str
     env: Env = Env()
-    events_handlers: List[Handler | FuncHandler | ComposeStateHandler] = []
+    events_handlers: List[Handler] = []
     mode: ServiceMode = ServiceMode.ON
 
     def __eq__(self, other):

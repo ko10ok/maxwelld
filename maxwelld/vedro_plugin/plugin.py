@@ -126,7 +126,7 @@ class VedroMaxwellPlugin(Plugin):
                 CONSOLE.print(
                     Text('Starting ')
                     .append(Text(cfg_name, style=Style.mark))
-                    .append(' config for tests ...')
+                    .append(' services for tests ...')
                 )
                 env = getattr(self._envs, cfg_name)
                 env_id, new = await self._maxwell_demon.up(

@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 from copy import deepcopy
-from functools import partial
 from pathlib import Path
 from uuid import uuid4
 from warnings import warn
@@ -14,20 +13,21 @@ import yaml
 from rich.text import Text
 
 from maxwelld.client.types import EnvironmentId
-from maxwelld.core.docker_compose_interface import dc_state
-from maxwelld.env_description.env_types import AsIs
-from maxwelld.env_description.env_types import ComposeStateHandler
-from maxwelld.env_description.env_types import Env
-from maxwelld.env_description.env_types import Environment
-from maxwelld.env_description.env_types import EventStage
-from maxwelld.env_description.env_types import FuncHandler
-from maxwelld.env_description.env_types import Service
-from maxwelld.env_description.env_types import ServiceMode
+from maxwelld.core.compose_interface import dc_exec
+from maxwelld.core.compose_interface import dc_state
+from maxwelld.core.compose_interface import dc_up
 from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EnvConfigComposeInstance
 from maxwelld.core.exec_types import EnvConfigInstance
+from maxwelld.env_description.env_types import AsIs
+from maxwelld.env_description.env_types import Env
+from maxwelld.env_description.env_types import Environment
+from maxwelld.env_description.env_types import EventStage
+from maxwelld.env_description.env_types import Service
+from maxwelld.env_description.env_types import ServiceMode
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+from maxwelld.vedro_plugin.state_waiting import JobResult
 
 
 def make_env_service_name(service, env_id):
@@ -243,8 +243,10 @@ def get_compose_services(compose_files: str):
     for filename in compose_files.split(':'):
         dc_cfg = read_dc_file(filename)
         if 'services' in dc_cfg:
-            services += list(dc_cfg['services'].keys())
-    return list(set(services))
+            for service in dc_cfg['services'].keys():
+                if service not in services:
+                    services += [service]
+    return services
 
 
 def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
@@ -325,30 +327,12 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
 
     execution_envs = dict(os.environ)
     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
-    up = subprocess.call(
-        ['docker-compose', '--project-directory', '.', 'up', '--timestamps', '--no-deps', '--pull', 'never', '--timeout', '300', '-d', *services],
-        env=execution_envs,
-        cwd=in_docker_project_root
-    )
-    if up != 0:
-        print('Не смогли поднять')  # TODO make error type + dc down  or в diagnostic mode
-        print_state(execution_envs, in_docker_project_root)
-        sys.exit(up)
 
-    # -> print how to connect and dc aliases
+    status_result = dc_state(execution_envs, in_docker_project_root)
+    assert status_result != JobResult.BAD, f"Can't get first status for services {services}"
 
-    # # TODO extract check into maxxwelld
-    # check = subprocess.call(
-    #     [
-    #         'docker-compose', '--project-directory', '.', 'exec',
-    #         dc_env_config.env_config_instance.env_services_map['e2e'],
-    #         '/project/build/check-containers-started.sh'
-    #     ],
-    #     env=execution_envs,
-    #     cwd=in_docker_project_root
-    # )
-    # assert check == 0, 'Не дождались поднятия всего'  # TODO make error type + dc down  or в
-    # diagnostic mode -> print how to connect and dc aliaces
+    up_result = dc_up(services, execution_envs, in_docker_project_root)
+    assert up_result == JobResult.GOOD, f"Can't up services {services}"
 
     # run after servoice and after all hooks
     # TODO move after service, after service up
@@ -358,24 +342,12 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
                 if handler.stage != current_stage:
                     continue
 
-                if isinstance(handler, FuncHandler):
-                    handler.func()
-                    continue
-
-                if isinstance(handler, ComposeStateHandler):
-                    get_services_state = partial(dc_state, env=execution_envs, root=in_docker_project_root)
-                    # TODO migrate to non-0 return codes
-                    # TODO unify interface args kwargs
-                    res = handler.func(get_services_state, services)
-                    if res != 0:
-                        print(f'Не не получилось успешно обработать хук {handler}')
-                        sys.exit(res)
-                    continue
-
+                # TODO check target service substitution
                 target_service = dc_env_config.env_config_instance.env_services_map[
                     handler.executor or service
                 ]
 
+                # TODO extract data preparation
                 substituted_cmd = []
                 for cmd_part in handler.cmd:
                     if isinstance(cmd_part, AsIs):
@@ -384,43 +356,10 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
                     substituted_cmd += [
                         cmd_part.format(**dc_env_config.env_config_instance.env_services_map)
                     ]
-                print(f'Executing in {target_service} container: {substituted_cmd}')
-                hook = subprocess.call(
-                    [
-                        'docker-compose', '--project-directory', '.',
-                        'exec', f'{target_service}', *substituted_cmd
-                    ],
-                    env=execution_envs,
-                    cwd=in_docker_project_root
-                )
-                # TODO make error type + dc down  or в diagnostic mode -> print how to connect
-                #  and dc aliaces
-                if hook != 0:
-                    print(f'Не не получилось успешно обработать хук {handler}')
-                    print_state(execution_envs, in_docker_project_root)
-                    sys.exit(hook)
 
-
-
-# def down_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root):
-#     services = list(dc_env_config.env_config_instance.env_services_map.values())
-#     print(f'Down services: {services}')
-#     if dc_env_config.env_config_instance.env_id == EMPTY_ID:
-#         if 'e2e' in services:
-#             services.remove('e2e')
-#         if 'dockersock' in services:
-#             services.remove('dockersock')
-#         print(f'Down services except original e2e, dockersock started: {services}')
-#
-#     execution_envs = dict(os.environ)
-#     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
-#     up = subprocess.call(
-#         ['docker-compose', '--project-directory', '.', 'down', *services],
-#         env=execution_envs,
-#         cwd=in_docker_project_root
-#     )
-#     assert up == 0, 'Не смогли прибить все поднятое'  # TODO make error type + dc down  or в diagnostic mode
-
+                migrate_result = dc_exec(target_service, substituted_cmd, execution_envs, in_docker_project_root)
+                assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
+                                                          f"with {substituted_cmd}")
 
 def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root, except_containers: list[str]):
     dirpath, dirnames, filenames = next(os.walk(tmp_envs_path / env_id))
