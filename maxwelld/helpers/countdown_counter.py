@@ -7,4 +7,4 @@ class CountdownCounterKeeper:
         self._count += 1
 
     def is_done(self):
-        return self._count >= self._max_retries
+        return self._count > self._max_retries

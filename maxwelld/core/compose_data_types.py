@@ -49,7 +49,7 @@ class ServiceComposeState:
 
     def as_rich_text(self, style: Style = Style()):
         service_string = Text('     ')
-        service_string.append(Text(f"{self.name:{20}}"))
+        service_string.append(Text(f"{self.name:{20}}", style=style.regular))
         service_string.append(Text(
             f"{self.state:{20}}",
             style=style.good if self.state == ComposeState.RUNNING else style.bad
@@ -59,9 +59,9 @@ class ServiceComposeState:
             style=style.good if self.health == ComposeHealth.HEALTHY else style.bad
         ))
         service_string.append(Text(
-            self.status
+            self.status, style=style.regular
         ))
-        service_string.append(Text('\n'))
+        service_string.append(Text('\n', style=style.regular))
         return service_string
 
     def as_json(self):

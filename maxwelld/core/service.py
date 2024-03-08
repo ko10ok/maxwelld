@@ -118,12 +118,13 @@ class MaxwellDemonService:
                 )
                 del self._started_envs[env_name]
 
-    def up_compose(self, name: str, config_template: Environment, compose_files: str,
-                   isolation=None, parallelism_limit=None, verbose=False) -> tuple[EnvironmentId, bool]:
+    def up_compose(self, name: str, config_template: Environment, compose_files: str, isolation=None,
+                   parallelism_limit=None, verbose=False, force_restart: bool = False) -> tuple[EnvironmentId, bool]:
 
-        if existing_inflight_env := self.get_existing_inflight_env(
+        existing_inflight_env = self.get_existing_inflight_env(
             name, config_template, compose_files
-        ):
+        )
+        if existing_inflight_env and not force_restart:
             CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
                           f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env_id, False

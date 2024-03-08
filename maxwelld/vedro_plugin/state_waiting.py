@@ -17,6 +17,8 @@ from maxwelld.helpers.state_keeper import ServicesState
 from maxwelld.helpers.state_keeper import StateKeeper
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+from maxwelld.vedro_plugin.logger import Logger
+from maxwelld.vedro_plugin.logger import WaitVerbosity
 
 
 def is_service_running_and_healthy(service_state: ServiceComposeState) -> bool:
@@ -30,15 +32,18 @@ class JobResult(Enum):
 
 
 async def check_all_services_up(
-        get_services_state: Callable[[], Awaitable[ServicesComposeState]],
-        services: List[str],
-        counter_keeper: CountdownCounterKeeper,
-        state_keeper: StateKeeper,
+    get_services_state: Callable[[], Awaitable[ServicesComposeState]],
+    services: List[str],
+    counter_keeper: CountdownCounterKeeper,
+    state_keeper: StateKeeper,
+    verbose: WaitVerbosity = WaitVerbosity.FULL,
 ) -> JobResult:
+    # print(verbose, counter_keeper._count)
     output_style = Style()
+    logger = Logger(CONSOLE)
 
     if state_keeper.in_state(ServicesState.FIRST_STATE):
-        CONSOLE.print(Text('Starting services check up', style=output_style.info))
+        logger.log(Text('Starting services check up', style=output_style.info))
         state_keeper.update_state(ServicesState.DEFAULT_STATE)
 
     services_state = await get_services_state()
@@ -51,40 +56,63 @@ async def check_all_services_up(
     ]))
 
     if all_up:
-        CONSOLE.print(Text(' ✔ All services up:', style=output_style.good))
-        CONSOLE.print(services_state.as_rich_text(style=output_style))
+        # if verbose == WaitVerbosity.COMPACT:
+        #     logger.log(Text(f' ✔ All services up', style=output_style.good))
+        #     logger.flush()
+        if verbose == WaitVerbosity.FULL:
+            logger.log(Text(f' ✔ All services up:', style=output_style.good))
+            logger.log(services_state.as_rich_text(style=output_style))
+            logger.flush()
         return JobResult.GOOD
-
-    if state_keeper.not_in_state(services_state):
-        CONSOLE.print(Text(' ✗ Still not ready:', style=output_style.bad))
-        CONSOLE.print(services_state.as_rich_text(
-            filter=is_service_running_and_healthy,
-            style=output_style
-        ))
-        state_keeper.update_state(services_state)
 
     counter_keeper.tick()
     if counter_keeper.is_done():
-        CONSOLE.print(Text(' ✗ Stop retries. Services still not ready:',
-                           style=output_style.bad))
-        CONSOLE.print(services_state.as_rich_text(
+        logger.log(Text(' ✗ Stop retries. Services still not ready:', style=output_style.bad))
+        logger.log(services_state.as_rich_text(style=output_style))
+        logger.flush()
+        return JobResult.BAD
+
+    if state_keeper.not_in_state(services_state):
+        logger.log(Text(f' ✗ Services still not ready:', style=output_style.bad))
+        logger.log(services_state.as_rich_text(
+            filter=is_service_running_and_healthy,
             style=output_style
         ))
+        if verbose == WaitVerbosity.FULL or verbose == WaitVerbosity.COMPACT or verbose == WaitVerbosity.ON_ERROR:
+            logger.flush()
+        state_keeper.update_state(services_state)
+
     return JobResult.BAD
 
 
 def wait_all_services_up(
-        attempts=100,
-        delay_s=3
+    attempts=100,
+    delay_s=3,
 ) -> Callable[[Callable, list[str]], ServicesComposeState]:
-    return retry(
-        attempts=attempts,
-        delay=delay_s,
-        until=lambda x: x != JobResult.GOOD
-    )(
-        partial(
-            check_all_services_up,
-            counter_keeper=CountdownCounterKeeper(attempts),
-            state_keeper=StateKeeper()
-        )
+    return partial(
+        retry(
+            attempts=attempts,
+            delay=delay_s,
+            until=lambda x: x != JobResult.GOOD
+        )(check_all_services_up),
+        counter_keeper=CountdownCounterKeeper(attempts),
+        state_keeper=StateKeeper(),
     )
+
+class WaitAllServicesUp:
+    def __init__(self, attempts: int = 100, delay_s: int = 3):
+        self._attempts = attempts
+        self._delay_s = delay_s
+
+    def make_checker(self) -> Callable:
+        return partial(
+            retry(
+                attempts=self._attempts,
+                delay=self._delay_s,
+                until=lambda x: x != JobResult.GOOD
+            )(check_all_services_up),
+            counter_keeper=CountdownCounterKeeper(self._attempts),
+            state_keeper=StateKeeper(),
+        )
+
+wait_all_services_up = WaitAllServicesUp

@@ -37,16 +37,17 @@ class MaxwellDemonClient:
 
     @retry(attempts=10, delay=1, swallow=ClientConnectorError)
     async def up(self, name, config_template: Environment, compose_files: str, isolation=None,
-                 parallelism_limit=None) -> tuple[EnvironmentId, bool]:
+                 parallelism_limit=None, force_restart: bool = False) -> tuple[EnvironmentId, bool]:
         url = f'{self._server_url}{UP_PATH}'
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=UpRequestParams(
-                    name=name,
-                    config_template=base64_pickled(config_template),
-                    compose_files=compose_files,
-                    isolation=isolation,
-                    parallelism_limit=parallelism_limit,
-                    non_stop_containers=self._non_stop_containers,
+                name=name,
+                config_template=base64_pickled(config_template),
+                compose_files=compose_files,
+                isolation=isolation,
+                parallelism_limit=parallelism_limit,
+                non_stop_containers=self._non_stop_containers,
+                force_restart=force_restart,
             )) as response:
                 assert response.status == 200, response
                 response_body = UpResponseParams(**await response.json())

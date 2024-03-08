@@ -1,5 +1,5 @@
 class Style:
-    regular = ''
+    regular = 'bright_white'
     info = 'blue'
     bad = 'red'
     good = 'green'

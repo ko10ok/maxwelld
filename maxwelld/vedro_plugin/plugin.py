@@ -1,4 +1,6 @@
 import sys
+from enum import Enum
+from enum import auto
 from functools import reduce
 from sys import exit
 from typing import Type
@@ -18,6 +20,8 @@ from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
 from maxwelld.client.maxwell_client import MaxwellDemonClient
+from maxwelld.vedro_plugin.state_waiting import JobResult
+from maxwelld.vedro_plugin.logger import WaitVerbosity
 from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 from maxwelld.core.exec_types import ComposeConfig
 from maxwelld.core.utils import setup_env_for_tests
@@ -29,6 +33,11 @@ from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenario_confi
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenarios_configs_set
 
 DEFAULT_COMPOSE = 'default'
+
+
+class Stage(Enum):
+    INIT = auto()
+    PRE_TEST = auto()
 
 
 class VedroMaxwellPlugin(Plugin):
@@ -57,7 +66,12 @@ class VedroMaxwellPlugin(Plugin):
         self._chosen_config_name_postfix: str = ''
         self._checked_envs = []
         self._wait_all_service_func = config.wait_all_service_func
+        self._force_restart = False
 
+        self._lats_env_name_started = None
+        self._lats_env_id_started = None
+
+        self._reported_full = False
     def _print_running_config(self):
         CONSOLE.print(
             Text('Running ', style=Style.info)
@@ -81,32 +95,66 @@ class VedroMaxwellPlugin(Plugin):
     def on_config_loaded(self, event: ConfigLoadedEvent) -> None:
         self._global_config: ConfigType = event.config
 
-
-    async def wait_env_ready(self, env_id) -> None:
+    async def wait_env_ready(self, env_id, verbose: WaitVerbosity) -> None:
         environment = await self._maxwell_demon.env(env_id)
 
-        # TODO output only on first up and failed
-        await self._wait_all_service_func(
+        checker = self._wait_all_service_func.make_checker()
+
+        up_result = await checker(
             get_services_state=partial(self._maxwell_demon.status, env_id=env_id),
-            services=environment.get_services()
+            services=environment.get_services(),
+            verbose=verbose,
         )
+        assert up_result != JobResult.BAD, f"Can't done up environment"
+
+    async def up_env(self, env_name, stage):
+        if (self._verbose and not self._reported_full) or stage == Stage.INIT:
+            CONSOLE.print(
+                Text('Starting ', style=Style.regular)
+                .append(Text(env_name, style=Style.mark))
+                .append(Text(' services for tests ...', style=Style.regular))
+            )
+
+        env = getattr(self._envs, env_name)
+        started_env_id, restarted = await self._maxwell_demon.up(
+            name=env_name + self._chosen_config_name_postfix,
+            config_template=env,
+            compose_files=self._compose_choice.compose_files,
+            parallelism_limit=self._compose_choice.parallel_env_limit,
+            force_restart=self._force_restart
+        )
+
+        verbose = WaitVerbosity.COMPACT
+        if self._lats_env_id_started == started_env_id:
+            verbose = WaitVerbosity.ON_ERROR
+        if self._verbose and not self._reported_full:
+            verbose = WaitVerbosity.FULL
+
+        await self.wait_env_ready(
+            env_id=started_env_id,
+            verbose=verbose
+        )
+
+        self._force_restart = False
+        self._reported_full = True
+        self._lats_env_id_started = started_env_id
+        return started_env_id
 
     async def handle_scenarios(self, event: StartupEvent) -> None:
         needed_configs = extract_scenarios_configs_set(event.scheduler.scheduled)
 
         CONSOLE.print(
-            Text(f'Tests requests configs: ') + reduce(lambda a, b: a + Text(', ', style=Style.regular) + b, [
-                Text(f'{cfg}', style=Style.mark) for cfg in needed_configs
-            ])
+            Text(f'Tests requests configs: ') + reduce(
+                lambda a, b: a + Text(', ', style=Style.regular) + b, [
+                    Text(f'{cfg}', style=Style.mark) for cfg in needed_configs
+                ]
+            )
         )
-
-        if self._verbose:
-            CONSOLE.print(self._envs)
 
         if self._force_env_name:
             config_env_name = self._force_env_name
-            CONSOLE.print(
-                f'Overriding tests config:{needed_configs} by --env={self._force_env_name}')
+            CONSOLE.print(f'Overriding tests config:{needed_configs} '
+                          f'by --env={self._force_env_name}')
             needed_configs = {config_env_name}
 
         if self._list_envs:
@@ -123,25 +171,11 @@ class VedroMaxwellPlugin(Plugin):
                 or (self._compose_choice.parallel_env_limit == len(needed_configs))
         ):
             for cfg_name in list(needed_configs):
-                CONSOLE.print(
-                    Text('Starting ')
-                    .append(Text(cfg_name, style=Style.mark))
-                    .append(' services for tests ...')
-                )
-                env = getattr(self._envs, cfg_name)
-                env_id, new = await self._maxwell_demon.up(
-                    name=cfg_name + self._chosen_config_name_postfix,
-                    config_template=env,
-                    compose_files=self._compose_choice.compose_files,
-                    parallelism_limit=self._compose_choice.parallel_env_limit,
-                )
-                if new:
-                    await self.wait_env_ready(env_id=env_id)
+                await self._maxwell_demon.healthcheck()
+                await self.up_env(cfg_name, Stage.INIT)
 
     async def handle_setup_test_config(self, event: ScenarioRunEvent):
         config_env_name = extract_scenario_config(event.scenario_result.scenario)
-        if self._verbose:
-            CONSOLE.print(f'Starting {config_env_name} config for test ...')
 
         if self._force_env_name:
             if self._verbose:
@@ -149,17 +183,7 @@ class VedroMaxwellPlugin(Plugin):
                               f'{config_env_name} by --md-env={self._force_env_name}')
             config_env_name = self._force_env_name
 
-        await self._maxwell_demon.healthcheck()
-
-        env_template = getattr(self._envs, config_env_name)
-        env_id, new = await self._maxwell_demon.up(
-            name=config_env_name + self._chosen_config_name_postfix,
-            config_template=env_template,
-            compose_files=self._compose_choice.compose_files,
-            parallelism_limit=self._compose_choice.parallel_env_limit,
-        )
-        if new:
-            await self.wait_env_ready(env_id=env_id)
+        env_id = await self.up_env(config_env_name, Stage.PRE_TEST)
 
         environment = await self._maxwell_demon.env(env_id)
         setup_env_for_tests(environment)
@@ -175,6 +199,10 @@ class VedroMaxwellPlugin(Plugin):
             group.add_argument(f"--md-{choice_name}",
                                action='store_true',
                                help=f"Choose compose config {default_text}: {config}")
+
+        group.add_argument("--md-fr",
+                           action='store_true',
+                           help="Force restart env")
 
         group.add_argument("--md-list-services",
                            action='store_true',
@@ -217,6 +245,9 @@ class VedroMaxwellPlugin(Plugin):
 
         if event.args.md_env:
             self._force_env_name = event.args.md_env
+
+        if event.args.md_fr:
+            self._force_restart = event.args.md_fr
 
         self._print_running_config()
 

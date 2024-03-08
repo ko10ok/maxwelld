@@ -19,6 +19,7 @@ class UpRequestParams(TypedDict):
     isolation: bool
     parallelism_limit: int
     non_stop_containers: list[str]
+    force_restart: bool
 
 
 class UpResponseParams(TypedDict):
@@ -38,5 +39,6 @@ async def up_compose(request: Request) -> web.Response:
             compose_files=params['compose_files'],
             isolation=params['isolation'],
             parallelism_limit=params['parallelism_limit'],
+            force_restart=params['force_restart'],
         )
     return web.json_response(UpResponseParams(env_id=env_id, new=new), status=200)
