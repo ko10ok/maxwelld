@@ -36,6 +36,6 @@ build-image-beta:
 push-image-beta:
 	docker push ko10ok/maxwelld:`cat maxwelld/version`-beta
 
-.PHONY: git-tag
-git-tag:
+.PHONY: tag
+tag:
 	git tag v`cat maxwelld/version`

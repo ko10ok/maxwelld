@@ -25,7 +25,6 @@ async def dc_state(env: dict, root: Path | str) -> JobResult | ServicesComposeSt
     )
     await process.wait()
     stdout, stderr = await process.communicate()
-    print(stdout)
     if process.returncode != 0:
         print(f"Can't get container's status {stdout} {stderr}")
         return JobResult.BAD
