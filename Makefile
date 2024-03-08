@@ -33,3 +33,7 @@ build-n-push-beta-image:
 	echo maxwelld==`cat maxwelld/version` > docker/requirements.txt
 	docker build -f docker/Dockerfile . -t ko10ok/maxwelld:`cat maxwelld/version`-beta
 	docker push ko10ok/maxwelld:`cat maxwelld/version`-beta
+
+.PHONY: git-tag
+git-tag:
+	git tag v`cat maxwelld/version`
