@@ -19,7 +19,6 @@ from maxwelld.core.compose_interface import dc_up
 from maxwelld.core.exec_types import EMPTY_ID
 from maxwelld.core.exec_types import EnvConfigComposeInstance
 from maxwelld.core.exec_types import EnvConfigInstance
-from maxwelld.env_description.env_types import AsIs
 from maxwelld.env_description.env_types import Env
 from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
@@ -313,7 +312,7 @@ def print_state(execution_envs, in_docker_project_root):
     assert status == 0, 'Не смогли получить стейт'  # TODO make error type + dc down  or в diagnostic mode
 
 
-def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, except_containers: list[str]):
+async def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, except_containers: list[str]):
     services = list(dc_env_config.env_config_instance.env_services_map.values())
     CONSOLE.print(
         Text('Starting services: ', style=Style.info)
@@ -328,10 +327,10 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
     execution_envs = dict(os.environ)
     execution_envs['COMPOSE_FILE'] = dc_env_config.compose_files
 
-    status_result = dc_state(execution_envs, in_docker_project_root)
+    status_result = await dc_state(execution_envs, in_docker_project_root)
     assert status_result != JobResult.BAD, f"Can't get first status for services {services}"
 
-    up_result = dc_up(services, execution_envs, in_docker_project_root)
+    up_result = await dc_up(services, execution_envs, in_docker_project_root)
     assert up_result == JobResult.GOOD, f"Can't up services {services}"
 
     # run after servoice and after all hooks
@@ -343,21 +342,10 @@ def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_root, exc
                     continue
 
                 # TODO check target service substitution
-                target_service = dc_env_config.env_config_instance.env_services_map[
-                    handler.executor or service
-                ]
+                target_service = dc_env_config.env_config_instance.env_services_map[handler.executor or service]
+                substituted_cmd = handler.cmd % dc_env_config.env_config_instance.env_services_map
 
-                # TODO extract data preparation
-                substituted_cmd = []
-                for cmd_part in handler.cmd:
-                    if isinstance(cmd_part, AsIs):
-                        substituted_cmd += [cmd_part.value]
-                        continue
-                    substituted_cmd += [
-                        cmd_part.format(**dc_env_config.env_config_instance.env_services_map)
-                    ]
-
-                migrate_result = dc_exec(target_service, substituted_cmd, execution_envs, in_docker_project_root)
+                migrate_result = await dc_exec(target_service, substituted_cmd, execution_envs, in_docker_project_root)
                 assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
                                                           f"with {substituted_cmd}")
 

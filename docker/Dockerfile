@@ -22,6 +22,9 @@ RUN python3 -m venv venv
 
 RUN venv/bin/python3 -m pip install --upgrade pip
 
+ADD ./requirements.txt .
+RUN venv/bin/python3 -m pip install -r requirements.txt
+
 ADD . .
 RUN venv/bin/python3 -m pip install .
 

@@ -118,8 +118,10 @@ class MaxwellDemonService:
                 )
                 del self._started_envs[env_name]
 
-    def up_compose(self, name: str, config_template: Environment, compose_files: str, isolation=None,
-                   parallelism_limit=None, verbose=False, force_restart: bool = False) -> tuple[EnvironmentId, bool]:
+    async def up_compose(
+        self, name: str, config_template: Environment, compose_files: str, isolation=None, parallelism_limit=None,
+        verbose=False, force_restart: bool = False
+    ) -> tuple[EnvironmentId, bool]:
 
         existing_inflight_env = self.get_existing_inflight_env(
             name, config_template, compose_files
@@ -159,7 +161,7 @@ class MaxwellDemonService:
         CONSOLE.print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
 
         # TODO uncomment
-        in_flight_env = run_env(
+        in_flight_env = await run_env(
             compose_files_instance, self.in_docker_project_root_path, self._non_stop_containers
         )
 
@@ -185,12 +187,26 @@ class MaxwellDemonService:
         env_config_instance = self.get_existing_inflight_env_by_id(env_id)
         return env_config_instance.env
 
-    def status(self, env_id: str) -> ServicesComposeState:
+    async def status(self, env_id: str) -> ServicesComposeState:
         execution_envs = dict(os.environ)
         for env_name in self._started_envs:
             if self._started_envs[env_name]['env_id'] == env_id:
                 execution_envs['COMPOSE_FILE'] = \
                     self._started_envs[env_name]['params']['compose_files']
-        services_status = dc_state(env=execution_envs, root=self.in_docker_project_root_path)
+        services_status = await dc_state(env=execution_envs, root=self.in_docker_project_root_path)
         assert isinstance(services_status, ServicesComposeState), "Can't execute docker-compose ps"
         return services_status
+
+
+class MaxwellDemonServiceManager:
+    maxwell_demon_service = None
+
+    def __init__(self):
+        if MaxwellDemonServiceManager.maxwell_demon_service is None:
+            MaxwellDemonServiceManager.maxwell_demon_service = MaxwellDemonService(
+                project=os.environ.get('COMPOSE_PROJECT_NAME'),
+                non_stop_containers=os.environ.get('NON_STOP_CONTAINERS').split(',')
+            )
+
+    def get(self) -> MaxwellDemonService:
+        return MaxwellDemonServiceManager.maxwell_demon_service

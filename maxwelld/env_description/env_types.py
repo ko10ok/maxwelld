@@ -39,7 +39,7 @@ class EventStage(Enum):
 
 class Handler(NamedTuple):
     stage: EventStage
-    cmd: list[str | AsIs]
+    cmd: str
     executor: str = None
 
 
