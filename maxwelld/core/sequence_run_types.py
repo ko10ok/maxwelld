@@ -24,12 +24,3 @@ class EnvConfigComposeInstance(NamedTuple):
     compose_files_source: str
     directory: Path
     compose_files: str
-
-
-class InFlightEnv(NamedTuple):
-    name: str
-    id: str
-    env: Environment
-    envs_template: Environment
-    compose_files_instance: EnvConfigComposeInstance
-    params_hash: str = None
