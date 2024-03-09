@@ -24,3 +24,4 @@ class EnvConfigComposeInstance(NamedTuple):
     compose_files_source: str
     directory: Path
     compose_files: str
+    inline_migrations: dict = None

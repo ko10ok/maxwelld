@@ -11,6 +11,7 @@ from warnings import warn
 from rich.text import Text
 
 from maxwelld.client.types import EnvironmentId
+from maxwelld.core.compose_files_utils import extract_services_inline_migration
 from maxwelld.core.compose_files_utils import patch_docker_compose_file_services
 from maxwelld.core.compose_files_utils import read_dc_file
 from maxwelld.core.compose_interface import dc_exec
@@ -134,11 +135,14 @@ def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
 
+    inline_migrations = extract_services_inline_migration(new_compose_files_list.split(':'))
+
     return EnvConfigComposeInstance(
         env_config_instance=env_config_instance,
         compose_files_source=compose_files,
         directory=dst,
-        compose_files=new_compose_files_list
+        compose_files=new_compose_files_list,
+        inline_migrations=inline_migrations,
     )
 
 
@@ -196,7 +200,7 @@ async def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_roo
     # TODO move after service, after service up
     for current_stage in [EventStage.BEFORE_ALL, EventStage.BEFORE_SERVICE_START, EventStage.AFTER_SERVICE_START, EventStage.AFTER_ALL]:
         for service in dc_env_config.env_config_instance.env:
-            for handler in dc_env_config.env_config_instance.env[service].events_handlers:
+            for handler in dc_env_config.env_config_instance.env[service].events_handlers + dc_env_config.inline_migrations[service]:
                 if handler.stage != current_stage:
                     continue
 

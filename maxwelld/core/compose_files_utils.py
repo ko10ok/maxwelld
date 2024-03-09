@@ -1,10 +1,13 @@
+import collections
 from _warnings import warn
 from copy import deepcopy
 from pathlib import Path
 
 import yaml
 
-from maxwelld import Environment
+from maxwelld.env_description.env_types import Environment
+from maxwelld.env_description.env_types import EventStage
+from maxwelld.env_description.env_types import Handler
 
 
 def read_dc_file(filename: str | Path) -> dict:
@@ -146,3 +149,78 @@ def patch_docker_compose_file_services(filename: Path,
     dc_cfg = patch_services_volumes(dc_cfg, host_root)
 
     write_dc_file(filename, dc_cfg)
+
+
+def parse_migration(migration: dict):
+    assert isinstance(migration, dict), f'{migration} should be "stage: command" entry'
+    assert len(migration) == 1, f'{migration} should have only one "stage: command" entry'
+    assert list(migration.keys())[0] in EventStage.get_all_compose_stages(), f"{migration} stage should only be one of {EventStage.get_all_compose_stages()}"
+
+    for stage, command in migration.items():
+        if isinstance(command, str):
+            return Handler(
+                EventStage.get_compose_stage(stage),
+                cmd=command
+            )
+
+        if isinstance(command, list):
+            assert len(command) >= 1, f"Migration {migration} command should have at least one command part"
+            if isinstance(command[0], list):
+                return Handler(
+                    EventStage.get_compose_stage(stage),
+                    cmd=' '.join(command[0]),
+                    executor=command[1]
+                )
+            return Handler(
+                EventStage.get_compose_stage(stage),
+                cmd=' '.join(command)
+            )
+
+        if isinstance(command, dict):
+            assert 'cmd' in command, f'migration {migration} should have "cmd" key to exec'
+            assert 'executor' in command[0], f'migration {migration} should have "executor" key for target container'
+            return Handler(
+                EventStage.AFTER_SERVICE_START,
+                cmd=command['cmd'],
+                executor=command['executor']
+            )
+
+        assert False, (f'migration {command[0]} should have one of:\n'
+                       f'x-migration:\n'
+                       f'  - stage: command\n'
+                       f'  - stage: [ command, cmd_part ]\n'
+                       '  - stage: [ [command, cmd_part], executor ]\n'
+                       '  - stage: { cmd: command, executor: executor_container_name}\n'
+                       f'  - stage:\n'
+                       f'      cmd: command\n'
+                       f'      executor: executor_container_name\n'
+                       f'formats')
+
+
+def parse_migrations(migrations: list[dict]):
+    assert isinstance(migrations, list), (f'{migrations} should be list '
+                                          f'of {{stage: [cmd, params]}}')
+    result_hooks = []
+    for migration in migrations:
+        result_hooks += [parse_migration(migration)]
+    return result_hooks
+
+
+def extract_services_inline_migration(compose_files: list[str]):
+    migrations = collections.defaultdict(lambda: [])
+    for filename in compose_files:
+        dc_cfg = read_dc_file(filename)
+        if 'services' in dc_cfg:
+            for service in dc_cfg['services']:
+                if service not in migrations:
+                    migrations[service] = []
+
+                if 'x-migration' in dc_cfg['services'][service]:
+                    migrations[service] += parse_migrations(
+                        dc_cfg['services'][service]['x-migration']
+                    )
+
+                assert 'x-migrate' not in dc_cfg['services'][service], f'{service} have "x-migrate", do u mean "x-migration" section?'
+                assert 'x-migrations' not in dc_cfg['services'][service], f'{service} have "x-migrations", do u mean "x-migration" section?'
+
+    return migrations
