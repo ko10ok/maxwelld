@@ -1,5 +1,3 @@
-PROJECT_NAME=vedro_interactive
-
 .PHONY: install-deps
 install-deps:
 	pip3 install --quiet --upgrade pip

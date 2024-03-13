@@ -8,20 +8,17 @@ Orchestrate testing env easily
   maxwelld:
     image: docker.io/ko10ok/maxwelld:0.2.9-beta
     volumes:
-      # mwd container
       - .:/project
       - ./docker-composes:/docker-composes
-      - 
     environment:
       - DOCKER_HOST=tcp://dockersock:2375
       - COMPOSE_PROJECT_NAME='my-prjecct'
       - NON_STOP_CONTAINERS=dockersock,maxwelld,e2e-test
-      - HOST_PROJECT_ROOT_DIRECTORY=${HOST_DIRECTORY}    ???????
+      - HOST_PROJECT_ROOT_DIRECTORY=${HOST_DIRECTORY}
+      #TODO нужны значения по умолчанию
       - PROJECT_ROOT_DIRECTORY=/project                  ???????
       - HOST_TMP_ENV_DIRECTORY=env-tmp                   ???????
-      - COMPOSE_FILES_DIRECTORY=/docker-composes         ??????? Todo нужны значения по умолчанию
-      - PROJECT_NAME='my-prjecct'
-      - FULL_COMPOSE_FILE='docker-compose.yaml;docker-compose.dev.yaml'
+      - COMPOSE_FILES_DIRECTORY=/docker-composes         ???????
 ```
 
 ## Define services config
