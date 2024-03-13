@@ -78,7 +78,7 @@ MaxwellVedroPlugin -> MaxwellVedroPlugin: check_status -> NOT_OK
 
 == Env state final ==
 
-MaxwellVedroPlugin -> "Maxwell's Demon" : get_status(id=123)
+MaxwellVedroPlugin -> "Maxwell's Demon" : get_status(id=env_id)
 activate "Maxwell's Demon"
 
 "Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}

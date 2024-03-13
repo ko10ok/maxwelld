@@ -65,4 +65,4 @@ class Config(vedro.Config):
 ```
 
 ## Architecture design
-![Architecture design](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ko10ok/maxwelld/server_split_prototype/ARCH.puml)
+![Architecture design](https://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ko10ok/maxwelld/server_split_prototype/ARCH.puml)
