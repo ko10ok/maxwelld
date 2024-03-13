@@ -1,5 +1,5 @@
 from maxwelld.client.maxwell_client import MaxwellDemonClient
-from maxwelld.core.exec_types import ComposeConfig
+from maxwelld.core.sequence_run_types import ComposeConfig
 from maxwelld.core.service import MaxwellDemonService
 from maxwelld.env_description.env_tools import off
 from maxwelld.env_description.env_types import AsIs

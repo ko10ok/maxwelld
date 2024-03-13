@@ -1,17 +1,34 @@
 @startuml
-participant "Maxwell(Tests)" #lightgreen
-
-
+participant Vedro #lightgreen
+participant MaxwellVedroPlugin #lightgreen
 box Maxwell's Demon Container #lightblue
 participant "Maxwell's Demon" #lightgreen
 
+
+
+== Up containers ==
+
+[-> "Maxwell's Demon": dc up
+activate "Maxwell's Demon"
+note right "Maxwell's Demon": MaxwelldApiServer() \nENVs = {\n   PROJECT_NAME, \n   DOCKER_HOST, \n   NON_STOP_CONTAINERS\n} \n volumes= {\n   COMPOSE_FILES (*.yml)), \n   PROJECT_ROOT (if volumes used)\n}
+
+[-> Vedro: dc up
+note right Vedro: VedroPlugin(\n   MaxwelldApiClient()\n) \nENVs = {\n   MAXWELL_HOST, \n   DC_FILES_SET_1,\n   DC_FILES_SET_2, \n   ...\n}
+
+
+
 == Initialize startup of env ==
 
-"Maxwell(Tests)" -> "Maxwell's Demon" : up(id=123)
-note right
+Vedro -> MaxwellVedroPlugin: OnBeforeTest
+
+note right  MaxwellVedroPlugin : scenario(tags=[Env('NAME')])\nEnv = {Service_1, Service_2, ...}}
+activate MaxwellVedroPlugin
+
+MaxwellVedroPlugin -> "Maxwell's Demon" : up()
+note right "Maxwell's Demon"
 {
-    << envs >>
-    << compose_files >>
+    << ENV_VARS_BY_SERVICE >>
+    << COMPOSE_FILES >>
     << parallelism >> # == 1?  ->  id=no_id
 }
 end note
@@ -19,6 +36,8 @@ activate "Maxwell's Demon"
 
 
 participant "docker-compose(prefix=123)" #lightgreen
+end box
+
 "Maxwell's Demon" -> "docker-compose(prefix=123)" **:
 
 "Maxwell's Demon" -> "docker-compose(prefix=123)": up -d COMPOSE_FILE=<< compose_files >>
@@ -30,20 +49,26 @@ end box
 
 "docker-compose(prefix=123)" -> "Docker server"
 
-"Maxwell(Tests)" <-- "Maxwell's Demon" : ENV && << task scheduled >>
+MaxwellVedroPlugin <-- "Maxwell's Demon" : (env_id, was_restarted)
 deactivate "Maxwell's Demon"
 
 
-== Env state polling ==
 
-"Maxwell(Tests)" -> "Maxwell's Demon" : get_status(id=123)
+== Wait services && Env state polling ==
+
+
+MaxwellVedroPlugin -> MaxwellVedroPlugin: wait_all_services()
+activate MaxwellVedroPlugin
+
+MaxwellVedroPlugin -> "Maxwell's Demon" : get_status(id=env_id)
 activate "Maxwell's Demon"
 
 "Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}
 "Maxwell's Demon" <-- "docker-compose(prefix=123)" : [ {service:status}, ... ]
 
-return status{services} && not_done
+return status_of_services
 
+MaxwellVedroPlugin -> MaxwellVedroPlugin: check_status -> NOT_OK
 
 "Maxwell's Demon" -> "docker-compose(prefix=123)": dc exec %service% hooks/migrations
 
@@ -51,13 +76,27 @@ return status{services} && not_done
 
 
 
-== Env state final polling ==
+== Env state final ==
 
-"Maxwell(Tests)" -> "Maxwell's Demon" : get_status(id=123)
+MaxwellVedroPlugin -> "Maxwell's Demon" : get_status(id=123)
 activate "Maxwell's Demon"
 
 "Maxwell's Demon" -> "docker-compose(prefix=123)" : dc ps -a format=={{json .}}
 "Maxwell's Demon" <-- "docker-compose(prefix=123)" : [ {service:status}, ... ]
 
-return status{services} && done
+return status{services}
+
+MaxwellVedroPlugin -> MaxwellVedroPlugin: check_status -> OK
+deactivate MaxwellVedroPlugin
+
+
+MaxwellVedroPlugin -> MaxwellVedroPlugin: Env -> os.environ
+
+
+== Run test ==
+
+
+MaxwellVedroPlugin -> Vedro:
+deactivate MaxwellVedroPlugin
+note over Vedro: ...
 @enduml

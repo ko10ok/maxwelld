@@ -2,10 +2,26 @@
 
 Orchestrate testing env easily
 
-# Install & activate
-## Install package
-```shell
-$ pip3 install maxwelld
+# Vedro usage
+## Add "supervisor" container
+```docker-compose
+  maxwelld:
+    image: docker.io/ko10ok/maxwelld:0.2.9-beta
+    volumes:
+      # mwd container
+      - .:/project
+      - ./docker-composes:/docker-composes
+      - 
+    environment:
+      - DOCKER_HOST=tcp://dockersock:2375
+      - COMPOSE_PROJECT_NAME='my-prjecct'
+      - NON_STOP_CONTAINERS=dockersock,maxwelld,e2e-test
+      - HOST_PROJECT_ROOT_DIRECTORY=${HOST_DIRECTORY}    ???????
+      - PROJECT_ROOT_DIRECTORY=/project                  ???????
+      - HOST_TMP_ENV_DIRECTORY=env-tmp                   ???????
+      - COMPOSE_FILES_DIRECTORY=/docker-composes         ??????? Todo нужны значения по умолчанию
+      - PROJECT_NAME='my-prjecct'
+      - FULL_COMPOSE_FILE='docker-compose.yaml;docker-compose.dev.yaml'
 ```
 
 ## Define services config
@@ -13,14 +29,19 @@ $ pip3 install maxwelld
 from maxwelld import Environments
 from maxwelld import Environment
 from maxwelld import DEFAULT_ENV
+from maxwelld import Service
+
+web = Service('web')
+web_gallery = Service('web-gallery')  # from docker-compose
+mq = Service('mq')
+db = Service('db')
 
 class Envs(Environments):
     DEFAULT = Environment(
         DEFAULT_ENV,
-        builder, web, web_gallery, wep_ext_app, cli,
+        web, web_gallery,
         db,
-        mq,
-        e2e
+        mq
     )
 ```
 
@@ -37,11 +58,11 @@ class Config(vedro.Config):
             enabled = True
             envs = Envs()
             compose_cfgs = {
-                'default': ComposeConfig(os.environ.get('DC_FILES')),
+                'default': ComposeConfig(os.environ.get('DC_FILES'), parallel_env_limit=1),
                 'dev': ComposeConfig(os.environ.get(f'DC_FILES_1'), parallel_env_limit=1),
             }
-            project = os.environ.get('COMPOSE_PROJECT_NAME', default='some_project')
+            project = os.environ.get('COMPOSE_PROJECT_NAME')
 ```
 
-## Architecture design draft
-![Architecture design draft](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ko10ok/maxwelld/server_split_prototype/ARCH.puml)
+## Architecture design
+![Architecture design](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ko10ok/maxwelld/server_split_prototype/ARCH.puml)

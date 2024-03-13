@@ -23,8 +23,8 @@ from maxwelld.client.maxwell_client import MaxwellDemonClient
 from maxwelld.vedro_plugin.state_waiting import JobResult
 from maxwelld.vedro_plugin.logger import WaitVerbosity
 from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
-from maxwelld.core.exec_types import ComposeConfig
-from maxwelld.core.utils import setup_env_for_tests
+from maxwelld.core.sequence_run_types import ComposeConfig
+from maxwelld.core.compose_run_sequences import setup_env_for_tests
 from maxwelld.env_description.env_types import Environments
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
