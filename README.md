@@ -1,6 +1,11 @@
 # Maxwell's demon of test enviroment
 
-Orchestrate testing env easily
+Orchestrate testing env easily.
+
+Wraps docker-compose and it's dependencies into it's own container with http api.
+
+Execute docker-compose commands sequences for starting requested services set from volumed docker-compose files.
+Rerun environment when in-flight one is different from new requested.
 
 # Vedro usage
 ## Add "supervisor" container
@@ -20,6 +25,7 @@ Orchestrate testing env easily
 
 ## Define services config
 ```python
+# env_set.py
 from maxwelld import Environments
 from maxwelld import Environment
 from maxwelld import DEFAULT_ENV
@@ -43,6 +49,7 @@ class Envs(Environments):
 ```python
 from maxwelld import vedro_plugin as vedro_maxwell
 from maxwelld import ComposeConfig
+from env_set import Envs
 
 class Config(vedro.Config):
 
@@ -52,8 +59,8 @@ class Config(vedro.Config):
             enabled = True
             envs = Envs()
             compose_cfgs = {
-                'default': ComposeConfig(os.environ.get('DC_FILES'), parallel_env_limit=1),
-                'dev': ComposeConfig(os.environ.get(f'DC_FILES_1'), parallel_env_limit=1),
+                'default': ComposeConfig('docker-compose.yml', parallel_env_limit=1),
+                'dev': ComposeConfig('docker-compose.yml:docker-compose.dev.yml', parallel_env_limit=1),
             }
 ```
 
