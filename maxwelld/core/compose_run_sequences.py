@@ -112,9 +112,8 @@ def make_env_compose_instance_files(env_config_instance: EnvConfigInstance,
                                     compose_files: str,
                                     project_network_name: str,  # without "_default"
                                     host_project_root_directory,
-                                    compose_files_path: Path = Path('/compose-files'),
-                                    # dot_env_files_path: Path = Path('/docker-composes/envs'),
-                                    tmp_env_path: Path = Path('/env-tmp'),
+                                    compose_files_path: Path,
+                                    tmp_env_path: Path,
                                     ) -> EnvConfigComposeInstance:
     dst = tmp_env_path / env_config_instance.env_id
     dst.mkdir(parents=True, exist_ok=True)

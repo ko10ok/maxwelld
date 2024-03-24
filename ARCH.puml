@@ -10,7 +10,7 @@ participant "Maxwell's Demon" #lightgreen
 
 [-> "Maxwell's Demon": dc up
 activate "Maxwell's Demon"
-note right "Maxwell's Demon": MaxwelldApiServer() \nENVs = {\n   PROJECT_NAME, \n   DOCKER_HOST, \n   NON_STOP_CONTAINERS\n} \n volumes= {\n   COMPOSE_FILES (*.yml)), \n   PROJECT_ROOT (if volumes used)\n}
+note right "Maxwell's Demon": MaxwelldApiServer() \nENVs = {\n   COMPOSE_PROJECT_NAME, \n   DOCKER_HOST, \n   NON_STOP_CONTAINERS\n} \n volumes= {\n   COMPOSE_FILES (*.yml)), \n   PROJECT_ROOT (if volumes used)\n}
 
 [-> Vedro: dc up
 note right Vedro: VedroPlugin(\n   MaxwelldApiClient()\n) \nENVs = {\n   MAXWELL_HOST, \n   DC_FILES_SET_1,\n   DC_FILES_SET_2, \n   ...\n}

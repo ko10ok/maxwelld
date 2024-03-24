@@ -6,19 +6,16 @@ Orchestrate testing env easily
 ## Add "supervisor" container
 ```docker-compose
   maxwelld:
-    image: docker.io/ko10ok/maxwelld:0.2.9-beta
+    image: docker.io/ko10ok/maxwelld:0.2.9
     volumes:
       - .:/project
       - ./docker-composes:/docker-composes
+      - ./env-tmp:/env-tmp
     environment:
       - DOCKER_HOST=tcp://dockersock:2375
-      - COMPOSE_PROJECT_NAME='my-prjecct'
-      - NON_STOP_CONTAINERS=dockersock,maxwelld,e2e-test
-      - HOST_PROJECT_ROOT_DIRECTORY=${HOST_DIRECTORY}
-      #TODO нужны значения по умолчанию
-      - PROJECT_ROOT_DIRECTORY=/project                  ???????
-      - HOST_TMP_ENV_DIRECTORY=env-tmp                   ???????
-      - COMPOSE_FILES_DIRECTORY=/docker-composes         ???????
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
+      - NON_STOP_CONTAINERS=dockersock,maxwelld,e2e
+      - HOST_PROJECT_ROOT_DIRECTORY=${HOST_PROJECT_ROOT_DIRECTORY}
 ```
 
 ## Define services config
@@ -58,7 +55,6 @@ class Config(vedro.Config):
                 'default': ComposeConfig(os.environ.get('DC_FILES'), parallel_env_limit=1),
                 'dev': ComposeConfig(os.environ.get(f'DC_FILES_1'), parallel_env_limit=1),
             }
-            project = os.environ.get('COMPOSE_PROJECT_NAME')
 ```
 
 ## Architecture design

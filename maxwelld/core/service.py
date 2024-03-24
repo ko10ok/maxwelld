@@ -28,29 +28,30 @@ from maxwelld.output.styles import Style
 
 
 class MaxwellDemonService:
-    def __init__(self, project: str, non_stop_containers: list[str]):
+    def __init__(self):
         assert shutil.which("docker"), 'Docker not installed'
         assert shutil.which("docker-compose"), 'Docker-compose not installed'
-        assert os.environ.get('COMPOSE_FILES_DIRECTORY'), \
-            'COMPOSE_FILES_DIRECTORY env should be set'
-        assert os.environ.get('PROJECT_ROOT_DIRECTORY'), \
-            'PROJECT_ROOT_DIRECTORY env should be set'
+
+        assert os.environ.get('COMPOSE_PROJECT_NAME'), \
+            'COMPOSE_PROJECT_NAME env should be set'
+        assert os.environ.get('NON_STOP_CONTAINERS'), \
+            'NON_STOP_CONTAINERS env should be set'
         assert os.environ.get('HOST_PROJECT_ROOT_DIRECTORY'), \
             'HOST_PROJECT_ROOT_DIRECTORY env should be set'
         assert os.environ.get('HOST_TMP_ENV_DIRECTORY'), \
             'HOST_TMP_ENV_DIRECTORY env should be set'
 
-        self._project = project
-        self._non_stop_containers = non_stop_containers
-        self.tmp_envs_path = Path('/env-tmp')  # TODO get from envs
+        # TODO print service paths for *.yml files, project root and etc.
+        self._project = os.environ.get('COMPOSE_PROJECT_NAME')
+        self._non_stop_containers = os.environ.get('NON_STOP_CONTAINERS').split(',')
+        self.tmp_envs_path = Path(os.environ.get('TMP_ENVS_DIRECTORY'))
         self.compose_files_path = Path(os.environ.get('COMPOSE_FILES_DIRECTORY'))
-        # self.dot_env_files_path = Path('/compose-files/envs')
         self.in_docker_project_root_path = Path(os.environ.get('PROJECT_ROOT_DIRECTORY'))
-        self.env_file_name = 'envs.json'
+        self.env_file_name = os.environ.get('TMP_ENVS_REGISTER_FILE')
         self.env_file_path = self.tmp_envs_path / self.env_file_name
         self.host_project_root_directory = Path(os.environ.get('HOST_PROJECT_ROOT_DIRECTORY'))
-        self.host_env_tmp_directory = \
-            self.host_project_root_directory / os.environ.get('HOST_TMP_ENV_DIRECTORY')
+        self.env_tmp_directory = Path(os.environ.get('HOST_TMP_ENV_DIRECTORY'))
+        self.host_env_tmp_directory = self.host_project_root_directory / self.env_tmp_directory
         self._started_envs: dict[str, dict] = actualize_in_flight(
             self.tmp_envs_path,
             self.env_file_name
@@ -128,7 +129,8 @@ class MaxwellDemonService:
         )
         if existing_inflight_env and not force_restart:
             CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
-                          f'> source ./env-tmp/{existing_inflight_env.env_id}/.env')
+                          f'> cd {self.host_project_root_directory} && '
+                          f'source ./env-tmp/{existing_inflight_env.env_id}/.env')
             return existing_inflight_env.env_id, False
 
         CONSOLE.print(
@@ -153,12 +155,12 @@ class MaxwellDemonService:
             project_network_name=self._project,
             host_project_root_directory=self.host_project_root_directory,
             compose_files_path=self.compose_files_path,
-            # dot_env_files_path=self.dot_env_files_path,
             tmp_env_path=self.tmp_envs_path,
         )
 
         make_debug_bash_env(compose_files_instance, self.host_env_tmp_directory)
-        CONSOLE.print(f'Docker-compose access: > source ./env-tmp/{new_env_id}/.env')
+        CONSOLE.print(f'Docker-compose access: > cd {self.host_project_root_directory} && '
+                      f'source ./env-tmp/{new_env_id}/.env')
 
         # TODO uncomment
         in_flight_env = await run_env(
@@ -171,7 +173,9 @@ class MaxwellDemonService:
             CONSOLE.print(f'Config params: {unpack_services_env_template_params(env_config_instance.env)}')
         CONSOLE.print(
             Text(f'Docker-compose access: > ', style=Style.info)
-            .append(Text(f'source ./env-tmp/{new_env_id}/.env', style=Style.mark_neutral))
+            .append(Text(
+                f'cd {self.host_project_root_directory} && source ./env-tmp/{new_env_id}/.env',
+                style=Style.mark_neutral))
         )
 
         self.update_inflight_envs(
@@ -203,10 +207,7 @@ class MaxwellDemonServiceManager:
 
     def __init__(self):
         if MaxwellDemonServiceManager.maxwell_demon_service is None:
-            MaxwellDemonServiceManager.maxwell_demon_service = MaxwellDemonService(
-                project=os.environ.get('COMPOSE_PROJECT_NAME'),
-                non_stop_containers=os.environ.get('NON_STOP_CONTAINERS').split(',')
-            )
+            MaxwellDemonServiceManager.maxwell_demon_service = MaxwellDemonService()
 
     def get(self) -> MaxwellDemonService:
         return MaxwellDemonServiceManager.maxwell_demon_service

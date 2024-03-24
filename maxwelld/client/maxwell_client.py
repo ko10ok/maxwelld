@@ -19,9 +19,7 @@ from maxwelld.server.handlers.up import UpResponseParams
 
 
 class MaxwellDemonClient:
-    def __init__(self, host, project, non_stop_containers, port=80):
-        self._project = project
-        self._non_stop_containers = non_stop_containers
+    def __init__(self, host, port=80):
         self._server_host = host
         self._server_port = port
         self._server_url = f'{self._server_host}:{self._server_port}'
@@ -46,7 +44,6 @@ class MaxwellDemonClient:
                 compose_files=compose_files,
                 isolation=isolation,
                 parallelism_limit=parallelism_limit,
-                non_stop_containers=self._non_stop_containers,
                 force_restart=force_restart,
             )) as response:
                 assert response.status == 200, response

@@ -45,13 +45,7 @@ class VedroMaxwellPlugin(Plugin):
         super().__init__(config)
         self._enabled = config.enabled
         self._envs: Environments = config.envs
-        self._project = config.project
-        self._non_stop_containers = config.non_stop_containers
-        self._maxwell_demon = MaxwellDemonClient(
-            host="http://127.0.0.1",
-            project=self._project,
-            non_stop_containers=self._non_stop_containers
-        )
+        self._maxwell_demon = MaxwellDemonClient(host="http://127.0.0.1")
         if config.maxwell_demon_client:
             self._maxwell_demon = config.maxwell_demon_client
         self._list_envs = None
@@ -266,12 +260,6 @@ class VedroMaxwell(PluginConfig):
 
     # ComposeConfig set of compose files and defaulr parallelism restrictions
     compose_cfgs: dict[str, ComposeConfig] = None
-
-    # Project name directory and {project}_default network
-    project: str = None
-
-    # Containers which shouldn't stop
-    non_stop_containers = ['e2e', 'dockersock']
 
     # services waiter
     wait_all_service_func = wait_all_services_up()

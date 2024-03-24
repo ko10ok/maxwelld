@@ -17,7 +17,6 @@ class UpRequestParams(TypedDict):
     compose_files: str
     isolation: bool
     parallelism_limit: int
-    non_stop_containers: list[str]
     force_restart: bool
 
 
