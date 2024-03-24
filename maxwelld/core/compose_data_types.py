@@ -64,7 +64,7 @@ class ServiceComposeState:
         service_string.append(Text('\n', style=style.regular))
         return service_string
 
-    def as_json(self):
+    def as_json(self) -> dict[str, str]:
         return {
             'name': self.name,
             'state': self.state,
