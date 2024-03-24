@@ -26,7 +26,7 @@ from maxwelld import DEFAULT_ENV
 from maxwelld import Service
 
 web = Service('web')
-web_gallery = Service('web-gallery')  # from docker-compose
+web_gallery = Service('web-gallery')  # Service names "web-gallery", "mq", etc from docker-compose.yml
 mq = Service('mq')
 db = Service('db')
 
