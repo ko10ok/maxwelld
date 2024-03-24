@@ -162,6 +162,7 @@ def make_debug_bash_env(env_config_compose_instance: EnvConfigComposeInstance,
         # f.write(f'export COMPOSE_PROJECT_NAME={new_project_name}\n')
 
 
+# TODO move into compose_interface.py
 def print_state(execution_envs, in_docker_project_root):
     status = subprocess.call(
         shlex.split(
@@ -211,6 +212,8 @@ async def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_roo
                 assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
                                                           f"with {substituted_cmd}")
 
+
+# TODO move into compose_interface.py
 def down_in_flight_envs(tmp_envs_path: Path, env_id, in_docker_project_root, except_containers: list[str]):
     dirpath, dirnames, filenames = next(os.walk(tmp_envs_path / env_id))
     filenames.remove('.env')
