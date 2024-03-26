@@ -21,7 +21,7 @@ from maxwelld.vedro_plugin.logger import Logger
 from maxwelld.vedro_plugin.logger import WaitVerbosity
 
 
-def is_service_running_and_healthy(service_state: ServiceComposeState) -> bool:
+def is_service_not_running_or_not_healthy(service_state: ServiceComposeState) -> bool:
     return (service_state.state != ComposeState.RUNNING
             or service_state.health not in (ComposeHealth.EMPTY, ComposeHealth.HEALTHY))
 
@@ -38,7 +38,6 @@ async def check_all_services_up(
     state_keeper: StateKeeper,
     verbose: WaitVerbosity = WaitVerbosity.FULL,
 ) -> JobResult:
-    # print(verbose, counter_keeper._count)
     output_style = Style()
     logger = Logger(CONSOLE)
 
@@ -47,7 +46,7 @@ async def check_all_services_up(
         state_keeper.update_state(ServicesState.DEFAULT_STATE)
 
     services_state = await get_services_state()
-    all_up = (all([
+    is_all_up = (all([
         service.state == ComposeState.RUNNING
         for service in services_state if service.name in services
     ]) and all([
@@ -55,10 +54,7 @@ async def check_all_services_up(
         for service in services_state if service.name in services
     ]))
 
-    if all_up:
-        # if verbose == WaitVerbosity.COMPACT:
-        #     logger.log(Text(f' ✔ All services up', style=output_style.good))
-        #     logger.flush()
+    if is_all_up:
         if verbose == WaitVerbosity.FULL:
             logger.log(Text(f' ✔ All services up:', style=output_style.good))
             logger.log(services_state.as_rich_text(style=output_style))
@@ -67,37 +63,22 @@ async def check_all_services_up(
 
     counter_keeper.tick()
     if counter_keeper.is_done():
-        logger.log(Text(' ✗ Stop retries. Services still not ready:', style=output_style.bad))
+        logger.log(Text(' ✗ Stop retries. Still not ready services:', style=output_style.bad))
         logger.log(services_state.as_rich_text(style=output_style))
         logger.flush()
         return JobResult.BAD
 
     if state_keeper.not_in_state(services_state):
-        logger.log(Text(f' ✗ Services still not ready:', style=output_style.bad))
+        logger.log(Text(f' ✗ Still not ready services:', style=output_style.bad))
         logger.log(services_state.as_rich_text(
-            filter=is_service_running_and_healthy,
+            filter=is_service_not_running_or_not_healthy,
             style=output_style
         ))
-        if verbose == WaitVerbosity.FULL or verbose == WaitVerbosity.COMPACT or verbose == WaitVerbosity.ON_ERROR:
-            logger.flush()
+        logger.flush()
         state_keeper.update_state(services_state)
 
     return JobResult.BAD
 
-
-def wait_all_services_up(
-    attempts=100,
-    delay_s=3,
-) -> Callable[[Callable, list[str]], ServicesComposeState]:
-    return partial(
-        retry(
-            attempts=attempts,
-            delay=delay_s,
-            until=lambda x: x != JobResult.GOOD
-        )(check_all_services_up),
-        counter_keeper=CountdownCounterKeeper(attempts),
-        state_keeper=StateKeeper(),
-    )
 
 class WaitAllServicesUp:
     def __init__(self, attempts: int = 100, delay_s: int = 3):
@@ -114,5 +95,6 @@ class WaitAllServicesUp:
             counter_keeper=CountdownCounterKeeper(self._attempts),
             state_keeper=StateKeeper(),
         )
+
 
 wait_all_services_up = WaitAllServicesUp
