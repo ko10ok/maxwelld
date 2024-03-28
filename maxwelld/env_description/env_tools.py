@@ -1,7 +1,7 @@
 from warnings import warn
 
-from .env_types import Service
-from .env_types import ServiceMode
+from maxwelld.env_description.env_types import Service
+from maxwelld.env_description.env_types import ServiceMode
 
 
 def singleton(service: Service) -> Service:

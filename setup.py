@@ -9,11 +9,15 @@ def find_required():
         return f.read().splitlines()
 
 
+def get_version(filename='maxwelld/version'):
+    return open(filename, "r").read().strip()
+
+
 HERE = pathlib.Path(__file__).parent
 README = open("README.md").read()
 setup(
     name="maxwelld",
-    version="0.1.0",
+    version=get_version(),
     description="docker compose testing env orchestrator",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -33,4 +37,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
     ],
+    package_data={
+        'maxwelld': ['version'],
+    },
 )

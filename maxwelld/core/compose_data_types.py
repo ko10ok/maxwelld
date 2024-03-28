@@ -1,13 +1,11 @@
 import json
-import shlex
-import subprocess
 from dataclasses import dataclass
 from typing import Callable
 from typing import Iterator
 
 from rich.text import Text
 
-from .styles import Style
+from maxwelld.output.styles import Style
 
 
 class ComposeState:
@@ -51,7 +49,7 @@ class ServiceComposeState:
 
     def as_rich_text(self, style: Style = Style()):
         service_string = Text('     ')
-        service_string.append(Text(f"{self.name:{20}}"))
+        service_string.append(Text(f"{self.name:{20}}", style=style.regular))
         service_string.append(Text(
             f"{self.state:{20}}",
             style=style.good if self.state == ComposeState.RUNNING else style.bad
@@ -61,10 +59,18 @@ class ServiceComposeState:
             style=style.good if self.health == ComposeHealth.HEALTHY else style.bad
         ))
         service_string.append(Text(
-            self.status
+            self.status, style=style.regular
         ))
-        service_string.append(Text('\n'))
+        service_string.append(Text('\n', style=style.regular))
         return service_string
+
+    def as_json(self) -> dict[str, str]:
+        return {
+            'name': self.name,
+            'state': self.state,
+            'health': self.health,
+            'status': self.status,
+        }
 
 
 class ServicesComposeState:
@@ -107,12 +113,5 @@ class ServicesComposeState:
     def __repr__(self):
         return f'{type(self).__name__}(<{self._services}>)'
 
-
-def dc_state(env, root) -> ServicesComposeState:
-    status = subprocess.run(
-        shlex.split("docker-compose --project-directory . ps -a --format='{{json .}}'"),
-        env=env,
-        cwd=root,
-        capture_output=True,
-    )
-    return ServicesComposeState(status.stdout.decode('utf-8'))
+    def as_json(self) -> list[dict]:
+        return [service_status.as_json() for service_status in self._services]

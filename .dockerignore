@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+.gitattributes
+.github
+
+# Docker
+docker-compose.yml
+Dockerfile
+.docker
+.dockerignore
+docker/
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyCharm
+.idea
+
+# Other
+Makefile
+.editorconfig
+ARCH.puml

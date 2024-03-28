@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import NamedTuple
 from typing import Union
 
-from .env_types import Environment
+from maxwelld.env_description.env_types import Environment
 
 EMPTY_ID = 'no_id'
 
@@ -24,12 +24,4 @@ class EnvConfigComposeInstance(NamedTuple):
     compose_files_source: str
     directory: Path
     compose_files: str
-
-
-class InFlightEnv(NamedTuple):
-    name: str
-    id: str
-    env: Environment
-    envs_template: Environment
-    compose_files_instance: EnvConfigComposeInstance
-    params_hash: str = None
+    inline_migrations: dict = None
