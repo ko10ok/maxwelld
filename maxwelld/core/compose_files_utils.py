@@ -58,7 +58,7 @@ def patch_services_volumes(dc_cfg: dict, root_path: str | Path) -> dict:
     return new_dc_cfg
 
 
-def list_key_exist(key, env: list[str]):
+def list_key_exist(key, env: list[str]) -> None | str:
     for item in env:
         if key in item:
             return item
@@ -134,8 +134,9 @@ def patch_services_names(dc_cfg: dict, services_map: dict[str, str]) -> dict:
 def patch_docker_compose_file_services(filename: Path,
                                        host_root: Path,
                                        services_environment_vars: Environment,
-                                       network_name: str, services_map: dict[
-        str, str]):  # TODO network_name = [projectname]_default
+                                       network_name: str,
+                                       # TODO network_name = [projectname]_default
+                                       services_map: dict[str, str]) -> None:
     dc_cfg = read_dc_file(filename)
 
     dc_cfg = patch_network(dc_cfg, network_name=network_name)
@@ -151,7 +152,7 @@ def patch_docker_compose_file_services(filename: Path,
     write_dc_file(filename, dc_cfg)
 
 
-def parse_migration(migration: dict):
+def parse_migration(migration: dict) -> Handler:
     assert isinstance(migration, dict), f'{migration} should be "stage: command" entry'
     assert len(migration) == 1, f'{migration} should have only one "stage: command" entry'
     assert list(migration.keys())[0] in EventStage.get_all_compose_stages(), f"{migration} stage should only be one of {EventStage.get_all_compose_stages()}"
@@ -197,7 +198,7 @@ def parse_migration(migration: dict):
                        f'formats')
 
 
-def parse_migrations(migrations: list[dict]):
+def parse_migrations(migrations: list[dict]) -> list[Handler]:
     assert isinstance(migrations, list), (f'{migrations} should be list '
                                           f'of {{stage: [cmd, params]}}')
     result_hooks = []
@@ -206,7 +207,7 @@ def parse_migrations(migrations: list[dict]):
     return result_hooks
 
 
-def extract_services_inline_migration(compose_files: list[str]):
+def extract_services_inline_migration(compose_files: list[str]) -> dict[str, list[str]]:
     migrations = collections.defaultdict(lambda: [])
     for filename in compose_files:
         dc_cfg = read_dc_file(filename)
