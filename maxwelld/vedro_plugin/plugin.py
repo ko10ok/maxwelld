@@ -110,7 +110,7 @@ class VedroMaxwellPlugin(Plugin):
             )
 
         env = getattr(self._envs, env_name)
-        started_env_id, restarted = await self._maxwell_demon.up(
+        started_env_id = await self._maxwell_demon.up(
             name=env_name + self._chosen_config_name_postfix,
             config_template=env,
             compose_files=self._compose_choice.compose_files,

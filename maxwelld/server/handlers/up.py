@@ -22,13 +22,12 @@ class UpRequestParams(TypedDict):
 
 class UpResponseParams(TypedDict):
     env_id: EnvironmentId
-    new: bool
 
 
 async def up_compose(request: Request) -> web.Response:
     params: UpRequestParams = await request.json()
     async with UP_LOCK:
-        env_id, new = await MaxwellDemonServiceManager().get().up_compose(
+        env_id, is_new = await MaxwellDemonServiceManager().get().up_compose(
             name=params['name'],
             config_template=debase64_pickled(params['config_template']),
             compose_files=params['compose_files'],
@@ -36,4 +35,4 @@ async def up_compose(request: Request) -> web.Response:
             parallelism_limit=params['parallelism_limit'],
             force_restart=params['force_restart'],
         )
-    return web.json_response(UpResponseParams(env_id=env_id, new=new), status=200)
+    return web.json_response(UpResponseParams(env_id=env_id), status=200)
