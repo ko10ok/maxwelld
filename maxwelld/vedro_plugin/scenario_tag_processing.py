@@ -3,8 +3,8 @@ from typing import List
 
 from vedro.core import VirtualScenario
 
-from maxwelld import DEFAULT_ENV
-from maxwelld import Environment
+from maxwelld.env_description.env_types import DEFAULT_ENV
+from maxwelld.env_description.env_types import Environment
 
 
 def extract_scenario_config(scenario: VirtualScenario):

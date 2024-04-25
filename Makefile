@@ -1,4 +1,4 @@
-PROJECT_NAME=vedro_interactive
+export VERSION=$(shell cat maxwelld/version)
 
 .PHONY: install-deps
 install-deps:
@@ -18,3 +18,28 @@ build:
 .PHONY: publish
 publish:
 	twine upload dist/*
+
+.PHONY: build-image
+build-image:
+	docker build -f docker/Dockerfile . -t ko10ok/maxwelld:${VERSION}
+
+.PHONY: push-image
+push-image:
+	docker push ko10ok/maxwelld:${VERSION}
+
+.PHONY: buildx-build-n-push-image
+buildx-build-n-push-image:
+	docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile . -t ko10ok/maxwelld:${VERSION} --push
+
+.PHONY: build-image-beta
+build-image-beta:
+	echo "Building version: ${VERSION}"
+	docker build -f docker/Dockerfile . -t ko10ok/maxwelld:${VERSION}-beta
+
+.PHONY: push-image-beta
+push-image-beta:
+	docker push ko10ok/maxwelld:${VERSION}-beta
+
+.PHONY: tag
+tag:
+	git tag v${VERSION}

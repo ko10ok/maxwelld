@@ -1,6 +1,5 @@
 from enum import Enum
 from enum import auto
-from typing import Callable
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -31,27 +30,44 @@ class Env(Dict):
     ...
 
 
-class EventStage(Enum):
-    BEFORE_ALL = auto()
-    BEFORE_SERVICE_START = auto()
-    AFTER_SERVICE_START = auto()
-    AFTER_ALL = auto()
+class StageName(NamedTuple):
+    compose_name: str
 
+
+class EventStage(Enum):
+    BEFORE_ALL = StageName('before_all')
+    BEFORE_SERVICE_START = StageName('before_start')
+    AFTER_SERVICE_START = StageName('after_start')
+    AFTER_ALL = StageName('after_all')
+
+    @classmethod
+    def get_all_stages(cls):
+        return [
+            cls.BEFORE_ALL,
+            cls.AFTER_SERVICE_START,
+            cls.AFTER_ALL,
+            cls.BEFORE_SERVICE_START
+        ]
+
+    @classmethod
+    def get_all_compose_stages(cls):
+        return [
+            cls.BEFORE_ALL.value.compose_name,
+            cls.AFTER_SERVICE_START.value.compose_name,
+            cls.AFTER_ALL.value.compose_name,
+            cls.BEFORE_SERVICE_START.value.compose_name
+        ]
+
+    @classmethod
+    def get_compose_stage(cls, stage_name: str) -> 'EventStage':
+        for stage in cls.get_all_stages():
+            if stage.value.compose_name == stage_name:
+                return stage
+        assert False, 'No such stage: {}'.format(stage_name)
 
 class Handler(NamedTuple):
     stage: EventStage
-    cmd: list[str | AsIs]
-    executor: str = None
-
-
-class FuncHandler(NamedTuple):
-    stage: EventStage
-    func: Callable
-
-
-class ComposeStateHandler(NamedTuple):
-    stage: EventStage
-    func: Callable[[Callable, List], None]
+    cmd: str
     executor: str = None
 
 
@@ -65,7 +81,7 @@ class ServiceMode(Enum):
 class Service(NamedTuple):
     name: str
     env: Env = Env()
-    events_handlers: List[Handler | FuncHandler | ComposeStateHandler] = []
+    events_handlers: List[Handler] = []
     mode: ServiceMode = ServiceMode.ON
 
     def __eq__(self, other):
@@ -81,6 +97,12 @@ class Service(NamedTuple):
             events_handlers=self.events_handlers,
             mode=self.mode
         )
+
+    def as_dict(self):
+        return {
+            'name': self.name,
+            'env': dict(self.env),
+        }
 
 def remove_dups(*services: Service) -> List[Service]:
     result_services = []
@@ -128,6 +150,11 @@ class Environment:  # TODO rename Environment
 
     def __hash__(self):
         return hash(self._name)
+
+    def as_json(self) -> list[dict]:
+        return [
+            service.as_dict() for service in self._services
+        ]
 
 
 class SingletonService(Service):
