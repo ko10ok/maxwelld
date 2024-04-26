@@ -38,8 +38,6 @@ class MaxwellDemonService:
             'NON_STOP_CONTAINERS env should be set'
         assert os.environ.get('HOST_PROJECT_ROOT_DIRECTORY'), \
             'HOST_PROJECT_ROOT_DIRECTORY env should be set'
-        assert os.environ.get('HOST_TMP_ENV_DIRECTORY'), \
-            'HOST_TMP_ENV_DIRECTORY env should be set'
 
         # TODO print service paths for *.yml files, project root and etc.
         self._project = os.environ.get('COMPOSE_PROJECT_NAME')
@@ -50,8 +48,11 @@ class MaxwellDemonService:
         self.env_file_name = os.environ.get('TMP_ENVS_REGISTER_FILE')
         self.env_file_path = self.tmp_envs_path / self.env_file_name
         self.host_project_root_directory = Path(os.environ.get('HOST_PROJECT_ROOT_DIRECTORY'))
-        self.env_tmp_directory = Path(os.environ.get('HOST_TMP_ENV_DIRECTORY'))
-        self.host_env_tmp_directory = self.host_project_root_directory / self.env_tmp_directory
+        self.env_tmp_directory = Path(os.environ.get('TMP_ENVS_DIRECTORY'))
+        self.host_env_tmp_directory = Path(os.environ.get(
+                'HOST_TMP_ENV_DIRECTORY',
+                self.host_project_root_directory / self.env_tmp_directory.name
+        ))
         self._started_envs: dict[str, dict] = actualize_in_flight(
             self.tmp_envs_path,
             self.env_file_name
