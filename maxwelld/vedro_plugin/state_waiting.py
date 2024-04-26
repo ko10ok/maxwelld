@@ -55,8 +55,11 @@ async def check_all_services_up(
     ]))
 
     if is_all_up:
+        if verbose == WaitVerbosity.COMPACT:
+            logger.log(Text(f' ✔ All services up\n', style=output_style.mark_neutral))
+            logger.flush()
         if verbose == WaitVerbosity.FULL:
-            logger.log(Text(f' ✔ All services up:', style=output_style.good))
+            logger.log(Text(f' ✔ All services up:', style=output_style.mark_neutral))
             logger.log(services_state.as_rich_text(style=output_style))
             logger.flush()
         return JobResult.GOOD
