@@ -20,11 +20,11 @@ from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
 from maxwelld.client.maxwell_client import MaxwellDemonClient
-from maxwelld.vedro_plugin.state_waiting import JobResult
+from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.vedro_plugin.logger import WaitVerbosity
 from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 from maxwelld.core.sequence_run_types import ComposeConfig
-from maxwelld.core.compose_run_sequences import setup_env_for_tests
+from maxwelld.vedro_plugin.env_setter import setup_env_for_tests
 from maxwelld.env_description.env_types import Environments
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style

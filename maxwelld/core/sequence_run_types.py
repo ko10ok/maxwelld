@@ -12,15 +12,15 @@ class ComposeConfig(NamedTuple):
     parallel_env_limit: Union[int, None] = None
 
 
-class EnvConfigInstance(NamedTuple):
+class EnvInstanceConfig(NamedTuple):
     env_source: Environment
     env_id: str
     env_services_map: dict[str, str]
     env: Environment
 
 
-class EnvConfigComposeInstance(NamedTuple):
-    env_config_instance: EnvConfigInstance
+class ComposeInstanceFiles(NamedTuple):
+    env_config_instance: EnvInstanceConfig
     compose_files_source: str
     directory: Path
     compose_files: str

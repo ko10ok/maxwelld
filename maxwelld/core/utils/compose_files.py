@@ -1,9 +1,17 @@
 import collections
+import shutil
 from _warnings import warn
 from copy import deepcopy
 from pathlib import Path
+from pathlib import Path
+from pathlib import Path
 
 import yaml
+
+from maxwelld.core.sequence_run_types import ComposeInstanceFiles
+from maxwelld.core.sequence_run_types import ComposeInstanceFiles
+from maxwelld.core.sequence_run_types import EnvInstanceConfig
+from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
 
 from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
@@ -225,3 +233,40 @@ def extract_services_inline_migration(compose_files: list[str]) -> dict[str, lis
                 assert 'x-migrations' not in dc_cfg['services'][service], f'{service} have "x-migrations", do u mean "x-migration" section?'
 
     return migrations
+
+
+def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
+                                    compose_files: str,
+                                    project_network_name: str,  # without "_default"
+                                    host_project_root_directory,
+                                    compose_files_path: Path,
+                                    tmp_env_path: Path,
+                                    ) -> ComposeInstanceFiles:
+    dst = tmp_env_path / env_config_instance.env_id
+    dst.mkdir(parents=True, exist_ok=True)
+
+    for file in compose_files.split(':'):
+        src_file = compose_files_path / file
+        dst_file = dst / file
+        shutil.copy(src_file, dst_file)
+
+        # TODO fill dc files with env from .envs files as default
+        patch_docker_compose_file_services(
+            dst_file,
+            host_root=host_project_root_directory,
+            services_environment_vars=env_config_instance.env,
+            network_name=f'{project_network_name}_default',
+            services_map=env_config_instance.env_services_map
+        )
+
+    new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
+
+    inline_migrations = extract_services_inline_migration(new_compose_files_list.split(':'))
+
+    return ComposeInstanceFiles(
+        env_config_instance=env_config_instance,
+        compose_files_source=compose_files,
+        directory=dst,
+        compose_files=new_compose_files_list,
+        inline_migrations=inline_migrations,
+    )
