@@ -31,6 +31,12 @@ push-image:
 buildx-build-n-push-image:
 	docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile . -t ko10ok/maxwelld:${VERSION} --push
 
+.PHONY: buildx-builder
+buildx-builder:
+	docker buildx ls
+	docker buildx create --driver docker-container --name maxwelld-builder || true
+	docker buildx use --builder maxwelld-builder
+
 .PHONY: build-image-beta
 build-image-beta:
 	echo "Building version: ${VERSION}"

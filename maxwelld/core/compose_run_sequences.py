@@ -198,9 +198,11 @@ async def run_env(dc_env_config: EnvConfigComposeInstance, in_docker_project_roo
 
     # run after servoice and after all hooks
     # TODO move after service, after service up
-    for current_stage in [EventStage.BEFORE_ALL, EventStage.BEFORE_SERVICE_START, EventStage.AFTER_SERVICE_START, EventStage.AFTER_ALL]:
+    for current_stage in [EventStage.BEFORE_ALL, EventStage.BEFORE_SERVICE_START, EventStage.AFTER_SERVICE_START,
+                          EventStage.AFTER_ALL]:
         for service in dc_env_config.env_config_instance.env:
-            for handler in dc_env_config.env_config_instance.env[service].events_handlers + dc_env_config.inline_migrations[service]:
+            for handler in dc_env_config.env_config_instance.env[service].events_handlers + \
+                           dc_env_config.inline_migrations[service]:
                 if handler.stage != current_stage:
                     continue
 
@@ -266,6 +268,9 @@ def actualize_in_flight(tmp_envs_path: Path, env_file_name: str) -> {}:
             if not envs_:
                 envs_ = '{}'
             return json.loads(envs_)
+
+    if not os.path.exists(tmp_envs_path):
+        tmp_envs_path.mkdir(parents=True, exist_ok=True)
 
     dirpath, dirnames, filenames = next(os.walk(tmp_envs_path))
     for dir in dirnames:
