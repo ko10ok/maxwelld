@@ -10,5 +10,9 @@ def retrieve_all_docker_containers() -> list[Container]:
 
 
 def no_docker_containers():
+    d = APIClient(
+        base_url="http://test-docker-daemon:2375",
+    )
     for container in retrieve_all_docker_containers():
-        container.stop()
+        d.stop(container['Id'])
+        d.remove_container(container['Id'])

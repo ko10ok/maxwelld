@@ -2,11 +2,12 @@ import os
 import shutil
 from copy import deepcopy
 from pathlib import Path
+from sys import stdout
 from typing import Union
 
 from rich import json
 
-from maxwelld import Environment
+from maxwelld.env_description.env_types import Environment
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
@@ -30,13 +31,14 @@ class InflightKeeper:
                     envs_ = '{}'
                 return json.loads(envs_)
 
+        self.tmp_envs_path.mkdir(parents=True, exist_ok=True)
         dirpath, dirnames, filenames = next(os.walk(self.tmp_envs_path))
         for dir in dirnames:
             # TODO execute dc down for each env folder
             # TODO remove file interference (2 jobs on same runner will write/read same file)
             shutil.rmtree(Path(dirpath) / dir)
 
-    def get_existing_inflight_env(self, name: str, config_template: Environment,
+    def get_existing_inflight_env(self, name: str, config_template: Environment | None,
                                   compose_files: str) -> Union[EnvInstanceConfig, None]:
         if name in self._started_envs:
             env_id = self._started_envs[name]['env_id']

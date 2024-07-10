@@ -1,7 +1,7 @@
 import os
 from _warnings import warn
 
-from maxwelld import Environment
+from maxwelld.env_description.env_types import Environment
 
 
 def setup_env_for_tests(env: Environment):

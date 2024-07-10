@@ -9,5 +9,6 @@ class MaxwelldApi:
     async def up(self, params):
         return await self.client.post(
             f'{self.base_url}/dc/up',
-            json=params
+            json=params,
+            timeout=360,
         )

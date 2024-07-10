@@ -9,7 +9,7 @@ Env params should be set up: \
 - HOST_TMP_ENV_DIRECTORY - volumed path for temporarely generated envs; \
 - DOCKER_HOST - docker service host; \
 - PORT - service port (default=80); \
-- COMPOSE_FILES_DIRECTORY (default=/docker-composes) - compose files directory; \
+- COMPOSE_FILES_DIRECTORY (default=/compose-files) - compose files directory; \
 - TMP_ENVS_DIRECTORY (default=/env-tmp) - tmp compose files directory; \
 - PROJECT_ROOT_DIRECTORY (default=/project ) - volume with project root when project contains service with volumes"
 
@@ -17,7 +17,7 @@ WORKDIR /maxwelld
 
 ARG TARGETPLATFORM
 
-ENV COMPOSE_FILES_DIRECTORY=${COMPOSE_FILES_DIRECTORY:-"/docker-composes"}
+ENV COMPOSE_FILES_DIRECTORY=${COMPOSE_FILES_DIRECTORY:-"/compose-files"}
 ENV PROJECT_ROOT_DIRECTORY=${PROJECT_ROOT_DIRECTORY:-"/project"}
 ENV TMP_ENVS_DIRECTORY=${TMP_ENVS_DIRECTORY:-"/env-tmp"}
 ENV TMP_ENVS_REGISTER_FILE=${TMP_ENVS_REGISTER_FILE:-"envs.json"}
@@ -30,12 +30,12 @@ RUN /venv/bin/python3 -m pip install --upgrade pip
 ADD ./requirements.txt .
 RUN /venv/bin/python3 -m pip install -r requirements.txt
 
-ADD . .
-RUN /venv/bin/python3 -m pip install .
-
 RUN if [[ "$TARGETPLATFORM" = "linux/amd64" ]] ; then curl -SL https://github.com/docker/compose/releases/download/v2.24.4/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose ; fi
 RUN if [[ "$TARGETPLATFORM" = "linux/arm64" ]] ; then curl -SL https://github.com/docker/compose/releases/download/v2.24.4/docker-compose-linux-aarch64 -o /usr/local/bin/docker-compose ; fi
 
 RUN chmod +x /usr/local/bin/docker-compose
+
+ADD . .
+RUN /venv/bin/python3 -m pip install .
 
 CMD ["/venv/bin/python3", "-m", "maxwelld"]

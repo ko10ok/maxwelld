@@ -4,12 +4,13 @@ services:
     environment:
       - HOST_PROJECT_ROOT_DIRECTORY=HOST_PROJECT_ROOT_DIRECTORY_ENV_VAR
       - PROJECT_NAME=maxwelld-tests
-      - DEFAULT_COMPOSE="dc.yaml:dc1.yaml:dc2.yaml"
+      - DEFAULT_COMPOSE_FILES=docker-compose.yaml:docker-compose.dev.yaml
       - DOCKER_HOST=tcp://test-docker-daemon:2375
       - COMPOSE_PROJECT_NAME=test-just-now
       - NON_STOP_CONTAINERS=""
     volumes:
       - compose-files:/compose-files
+      - project:/project
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -23,6 +24,8 @@ services:
         - action: rebuild
           path: ..
           target: /maxwelld
+          ignore:
+            - tests/
 
   test-docker-daemon:
     image: docker:dind
@@ -47,6 +50,7 @@ services:
 #    image: python:3.10-alpine3.19
     volumes:
       - compose-files:/compose-files
+      - project:/project
       - .:/tests
       - ..:/maxwelld
     depends_on:
@@ -57,3 +61,4 @@ services:
 
 volumes:
   compose-files:
+  project:

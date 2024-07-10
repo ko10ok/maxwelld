@@ -1,13 +1,12 @@
 from pathlib import Path
 from uuid import uuid4
 
-from maxwelld import Env
-from maxwelld import Environment
-from maxwelld import Service
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
-from maxwelld.core.utils.compose_files import read_dc_file
+from maxwelld.env_description.env_types import Env
+from maxwelld.env_description.env_types import Environment
+from maxwelld.env_description.env_types import Service
 from maxwelld.env_description.env_types import ServiceMode
 
 
@@ -59,13 +58,20 @@ def get_service_map(env: Environment, new_env_id: str):
     }
 
 
-def make_env_instance_config(env_template: Environment, env_id) -> EnvInstanceConfig:
-    services_map = get_service_map(env_template, env_id)
+def make_env_instance_config(env_template: Environment | None, env_id) -> EnvInstanceConfig:
+    services_map = None
+    if env_template:
+        services_map = get_service_map(env_template, env_id)
+
+    env = Environment('DEFAULT_FULL')
+    if env_template:
+        env = prepare_services_env(env_template, services_map)
+
     return EnvInstanceConfig(
         env_source=env_template,
         env_id=env_id,
         env_services_map=services_map,
-        env=prepare_services_env(env_template, services_map)
+        env=env
     )
 
 
@@ -76,14 +82,3 @@ def get_new_instance_compose_files(compose_files: str, env_directory: Path) -> s
             for compose_file in compose_files.split(':')
         ]
     )
-
-
-def get_compose_services(compose_files: str):
-    services = []
-    for filename in compose_files.split(':'):
-        dc_cfg = read_dc_file(filename)
-        if 'services' in dc_cfg:
-            for service in dc_cfg['services'].keys():
-                if service not in services:
-                    services += [service]
-    return services

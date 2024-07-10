@@ -1,6 +1,7 @@
 import vedro
 from d42 import schema
 
+from contexts.compose_file import compose_file
 from contexts.no_docker_compose_files import no_docker_compose_files
 from contexts.no_docker_containers import no_docker_containers
 from contexts.no_docker_containers import retrieve_all_docker_containers
@@ -20,15 +21,28 @@ class Scenario(vedro.Scenario):
         self.params = {}
 
     async def given_compose_files(self):
-        with open('/compose-files/docker-compose.yaml', 'w') as file:
-            file.write("""
+        compose_file(
+            'docker-compose.yaml',
+            content="""
 version: "3"
 
 services:
   s1:
     image: busybox:stable
     command: sh -c 'while [ 1 ]; do sleep 1000; done'
-            """)
+"""
+        )
+        compose_file(
+            'docker-compose.dev.yaml',
+            content="""
+version: "3"
+
+services:
+  s2:
+    image: busybox:stable
+    command: sh -c 'while [ 1 ]; do sleep 1000; done'
+"""
+        )
 
     async def when_user_up_env_without_params(self):
         self.response = await MaxwelldApi().up(self.params)

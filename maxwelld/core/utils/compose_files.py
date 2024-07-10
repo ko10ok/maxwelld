@@ -1,18 +1,15 @@
 import collections
 import shutil
+import sys
 from _warnings import warn
 from copy import deepcopy
-from pathlib import Path
-from pathlib import Path
 from pathlib import Path
 
 import yaml
 
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
-from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
-
 from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
 from maxwelld.env_description.env_types import Handler
@@ -32,15 +29,15 @@ def patch_network(dc_cfg: dict, network_name) -> dict:
     new_dc_cfg = deepcopy(dc_cfg)
     if 'networks' not in new_dc_cfg:
         new_dc_cfg['networks'] = {}
-    new_dc_cfg['networks']['e2e_back_network'] = {
-        'name': network_name,
-        'external': True,
-    }
+    # new_dc_cfg['networks']['e2e_back_network'] = {
+    #     'name': network_name,
+    #     'external': True,
+    # }
 
     for service in new_dc_cfg['services']:
         if 'network' not in new_dc_cfg['services'][service]:
             new_dc_cfg['services'][service]['networks'] = []
-        new_dc_cfg['services'][service]['networks'] += ['e2e_back_network']
+        # new_dc_cfg['services'][service]['networks'] += ['e2e_back_network']
     return new_dc_cfg
 
 
@@ -89,7 +86,7 @@ def patch_envs(dc_cfg: dict, services_environment_vars: Environment):
     for service in dc_cfg['services']:
         if 'environment' not in dc_cfg['services'][service]:
             new_dc_cfg['services'][service]['environment'] = []
-        if isinstance(new_dc_cfg['services'][service]['environment'], list):
+        if isinstance(new_dc_cfg['services'][service]['environment'], list) and service in services_environment_vars:
             for k, v in services_environment_vars[service].env.items():
                 if existing := list_key_exist(f'{k}={v}',
                                               new_dc_cfg['services'][service]['environment']):
@@ -99,7 +96,7 @@ def patch_envs(dc_cfg: dict, services_environment_vars: Environment):
                             f'instead of "{v}"')
                 else:
                     new_dc_cfg['services'][service]['environment'] += [f'{k}={v}']
-        elif isinstance(new_dc_cfg['services'][service]['environment'], dict):
+        elif isinstance(new_dc_cfg['services'][service]['environment'], dict) and service in services_environment_vars:
             for k, v in services_environment_vars[service].env.items():
                 if k in new_dc_cfg['services'][service]['environment']:
                     if new_dc_cfg['services'][service]['environment'][k] != v:
@@ -144,16 +141,19 @@ def patch_docker_compose_file_services(filename: Path,
                                        services_environment_vars: Environment,
                                        network_name: str,
                                        # TODO network_name = [projectname]_default
-                                       services_map: dict[str, str]) -> None:
+                                       services_map: dict[str, str] | None) -> None:
     dc_cfg = read_dc_file(filename)
 
     dc_cfg = patch_network(dc_cfg, network_name=network_name)
 
-    dc_cfg = patch_service_set(dc_cfg, services_map)  # todo use servcie_map
+    if services_map:
+        dc_cfg = patch_service_set(dc_cfg, services_map)  # todo use servcie_map
 
-    dc_cfg = patch_envs(dc_cfg, services_environment_vars)  # todo use servcie_map
+    if services_environment_vars:
+        dc_cfg = patch_envs(dc_cfg, services_environment_vars)  # todo use servcie_map
 
-    dc_cfg = patch_services_names(dc_cfg, services_map)  # todo use servcie_map istead postfix
+    if services_map:
+        dc_cfg = patch_services_names(dc_cfg, services_map)  # todo use servcie_map istead postfix
 
     dc_cfg = patch_services_volumes(dc_cfg, host_root)
 
@@ -163,7 +163,9 @@ def patch_docker_compose_file_services(filename: Path,
 def parse_migration(migration: dict) -> Handler:
     assert isinstance(migration, dict), f'{migration} should be "stage: command" entry'
     assert len(migration) == 1, f'{migration} should have only one "stage: command" entry'
-    assert list(migration.keys())[0] in EventStage.get_all_compose_stages(), f"{migration} stage should only be one of {EventStage.get_all_compose_stages()}"
+    assert list(migration.keys())[
+               0] in EventStage.get_all_compose_stages(), (f"{migration} stage should only be one of "
+                                                           f"{EventStage.get_all_compose_stages()}")
 
     for stage, command in migration.items():
         if isinstance(command, str):
@@ -229,8 +231,10 @@ def extract_services_inline_migration(compose_files: list[str]) -> dict[str, lis
                         dc_cfg['services'][service]['x-migration']
                     )
 
-                assert 'x-migrate' not in dc_cfg['services'][service], f'{service} have "x-migrate", do u mean "x-migration" section?'
-                assert 'x-migrations' not in dc_cfg['services'][service], f'{service} have "x-migrations", do u mean "x-migration" section?'
+                assert 'x-migrate' not in dc_cfg['services'][
+                    service], f'{service} have "x-migrate", do u mean "x-migration" section?'
+                assert 'x-migrations' not in dc_cfg['services'][
+                    service], f'{service} have "x-migrations", do u mean "x-migration" section?'
 
     return migrations
 
@@ -249,6 +253,11 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
         src_file = compose_files_path / file
         dst_file = dst / file
         shutil.copy(src_file, dst_file)
+
+        print(env_config_instance)
+        print(env_config_instance.env)  # Enviroment()
+        print(env_config_instance.env_services_map)  # None
+        sys.stdout.flush()
 
         # TODO fill dc files with env from .envs files as default
         patch_docker_compose_file_services(
@@ -270,3 +279,14 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
         compose_files=new_compose_files_list,
         inline_migrations=inline_migrations,
     )
+
+
+def get_compose_services(compose_files: str):
+    services = []
+    for filename in compose_files.split(':'):
+        dc_cfg = read_dc_file(filename)
+        if 'services' in dc_cfg:
+            for service in dc_cfg['services'].keys():
+                if service not in services:
+                    services += [service]
+    return services

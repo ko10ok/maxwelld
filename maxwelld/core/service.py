@@ -1,5 +1,7 @@
 import os
 import shutil
+import warnings
+from typing import Type
 
 from rich.text import Text
 
@@ -19,21 +21,22 @@ from maxwelld.output.styles import Style
 
 class MaxwellDemonService:
     def __init__(self,
-                 cfg=Config,
-                 compose_interface: ComposeShellInterface = None,
-                 inflight_keeper: InflightKeeper = None,
-                 compose_instance_maker: ComposeInstanceManager = None):
-        assert shutil.which("docker"), 'Docker not installed'
-        assert shutil.which("docker-compose"), 'Docker-compose not installed'
+                 config=Config,
+                 compose_interface: type[ComposeShellInterface] = None,
+                 inflight_keeper: type[InflightKeeper] = None,
+                 compose_instance_maker: type[ComposeInstanceManager] = None):
+        # assert shutil.which("docker"), 'Docker not installed'
+        # assert shutil.which("docker-compose"), 'Docker-compose not installed'
 
-        assert os.environ.get('COMPOSE_PROJECT_NAME'), \
-            'COMPOSE_PROJECT_NAME env should be set'
-        assert os.environ.get('NON_STOP_CONTAINERS'), \
-            'NON_STOP_CONTAINERS env should be set'
-        assert os.environ.get('HOST_PROJECT_ROOT_DIRECTORY'), \
-            'HOST_PROJECT_ROOT_DIRECTORY env should be set'
+        # assert os.environ.get('COMPOSE_PROJECT_NAME'), \
+        #     'COMPOSE_PROJECT_NAME env should be set'
+        # assert os.environ.get('NON_STOP_CONTAINERS'), \
+        #     'NON_STOP_CONTAINERS env should be set'
+        # assert os.environ.get('HOST_PROJECT_ROOT_DIRECTORY'), \
+        #     'HOST_PROJECT_ROOT_DIRECTORY env should be set'
 
         # TODO print service paths for *.yml files, project root and etc.
+        cfg = config()
         self._project = cfg.project
         self._non_stop_containers = cfg.non_stop_containers
         self.tmp_envs_path = cfg.tmp_envs_path
@@ -45,17 +48,31 @@ class MaxwellDemonService:
         self.env_tmp_directory = cfg.env_tmp_directory
         self.host_env_tmp_directory = cfg.host_env_tmp_directory
 
-        if compose_interface is None:
-            self._compose_interface = ComposeShellInterface
+        self._compose_interface = ComposeShellInterface
+        if compose_interface is not None:
+            self._compose_interface = compose_interface
 
-        if compose_instance_maker is None:
-            self._compose_instance_manager = ComposeInstanceManager(
+        self._compose_instance_manager = ComposeInstanceManager(
+            project=self._project,
+            compose_interface=self._compose_interface,
+            except_containers=self._non_stop_containers,
+            compose_files_path=cfg.compose_files_path,
+            default_compose_files=cfg.default_compose_files,
+            in_docker_project_root=self.in_docker_project_root_path,
+            host_project_root_directory=self.host_project_root_directory,
+            tmp_envs_path=self.tmp_envs_path,
+        )
+
+        if compose_instance_maker is not None:
+            self._compose_instance_manager = compose_instance_maker(
                 project=self._project,
                 compose_interface=self._compose_interface,
                 except_containers=self._non_stop_containers,
                 compose_files_path=cfg.compose_files_path,
+                default_compose_files=cfg.default_compose_files,
                 in_docker_project_root=self.in_docker_project_root_path,
                 host_project_root_directory=self.host_project_root_directory,
+                tmp_envs_path=self.tmp_envs_path,
             )
 
         if inflight_keeper is None:
@@ -66,19 +83,40 @@ class MaxwellDemonService:
     def _unpack_services_env_template_params(self, env: Environment):
         return {service: env[service].env for service in env}
 
-    async def up_compose(
-        self, name: str, config_template: Environment, compose_files: str, isolation=None, parallelism_limit=None,
-        verbose=False, force_restart: bool = False
-    ) -> tuple[EnvironmentId, bool]:
+    async def up_compose(self, name: str, config_template: Environment, compose_files: str, isolation=None,
+                                 parallelism_limit=None, verbose=False, force_restart=False) -> tuple[EnvironmentId, bool]:
+        warnings.warn('Deprecated, use up_or_get_existing instead')
+        return await self.up_or_get_existing(
+            name, config_template, compose_files, isolation, parallelism_limit, verbose, force_restart
+        )
 
+    async def get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
         existing_inflight_env = self._inflight_keeper.get_existing_inflight_env(
             name, config_template, compose_files
         )
-        if existing_inflight_env and not force_restart:
+        if existing_inflight_env:
             CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
                           f'> cd {self.host_project_root_directory} && '
                           f'source ./env-tmp/{existing_inflight_env.env_id}/.env')
-            return existing_inflight_env.env_id, False
+            return existing_inflight_env.env_id
+        return None
+
+    async def up_or_get_existing(
+        self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None, parallelism_limit=None,
+        verbose=False, force_restart: bool = False
+    ) -> tuple[EnvironmentId, bool]:
+
+        existing_inflight_env_id = await self.get_existing(name, config_template, compose_files)
+        if existing_inflight_env_id and not force_restart:
+            return existing_inflight_env_id, False
+
+        # existing_inflight_env = self._inflight_keeper.get_existing_inflight_env(
+        #     name, config_template, compose_files
+        # )
+        # if existing_inflight_env and not force_restart:
+        #     CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
+        #                   f'> cd {self.host_project_root_directory} && '
+        #                   f'source ./env-tmp/{existing_inflight_env.env_id}/.env')
 
         CONSOLE.print(
             Text('Starting new environment: ', style=Style.info)
@@ -97,7 +135,7 @@ class MaxwellDemonService:
             new_env_id = EMPTY_ID
             to_down = self._compose_instance_manager.get_envs()
             for instance in to_down:
-                self._compose_instance_manager.down_env(instance)
+                await self._compose_instance_manager.down_env(instance)
                 self._inflight_keeper.cleanup_in_flight()
                 # TODO check if > 1
                 #          check current {name} is runnig?
@@ -105,11 +143,12 @@ class MaxwellDemonService:
                 #              check curren - 1 > limit
                 #                   grab to down some of limit - (current - 1)
 
-        make_debug_bash_env(target_compose_instance, self.host_env_tmp_directory)
+        await target_compose_instance.run()
+        target_compose_instance_files = target_compose_instance.compose_instance_files
+
+        make_debug_bash_env(target_compose_instance_files, self.host_env_tmp_directory)
         CONSOLE.print(f'Docker-compose access: > cd {self.host_project_root_directory} && '
                       f'source ./env-tmp/{new_env_id}/.env')
-
-        await target_compose_instance.run_env()
 
         # TODO should be transactional with file
         CONSOLE.print(Text(f'New environment for {name} started'))

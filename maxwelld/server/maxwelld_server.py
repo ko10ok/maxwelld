@@ -2,7 +2,12 @@ import os
 
 from aiohttp import web
 
-from maxwelld.server.commands import HEALTHCHECK_PATH, UP_PATH, STATUS_PATH, ENV_PATH
+from maxwelld.server.commands import DC_UP_PATH
+from maxwelld.server.commands import ENV_PATH
+from maxwelld.server.commands import HEALTHCHECK_PATH
+from maxwelld.server.commands import STATUS_PATH
+from maxwelld.server.commands import UP_PATH
+from maxwelld.server.handlers.dc_up import dc_up
 from maxwelld.server.handlers.env import http_get_env
 from maxwelld.server.handlers.healthcheck import healthcheck
 from maxwelld.server.handlers.status import http_get_status
@@ -12,6 +17,8 @@ routes = web.RouteTableDef()
 
 app = web.Application()
 app.add_routes([
+    web.post(DC_UP_PATH, dc_up),
+    # ============================
     web.get(HEALTHCHECK_PATH, healthcheck),
     web.post(UP_PATH, up_compose),
     web.get(STATUS_PATH, http_get_status),

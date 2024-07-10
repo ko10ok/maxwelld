@@ -7,6 +7,7 @@ from rich.text import Text
 from rtry import retry
 
 from maxwelld.core.compose_data_types import ServicesComposeState
+from maxwelld.core.config import Config
 from maxwelld.helpers.jobs_result import OperationError
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
@@ -17,7 +18,11 @@ class ComposeShellInterface:
     def __init__(self, compose_files, in_docker_project_root, execution_envs: dict = None):
         self.compose_files = compose_files
         self.in_docker_project_root = in_docker_project_root
-        self.execution_envs = {'COMPOSE_FILE': self.compose_files}
+        self.execution_envs = {
+            'COMPOSE_FILE': self.compose_files,
+            'DOCKER_HOST': Config().docker_host,
+            'COMPOSE_PROJECT_NAME': Config().compose_project_name,
+        }
         if execution_envs is not None:
             self.execution_envs |= execution_envs
 
@@ -31,8 +36,12 @@ class ComposeShellInterface:
         if root is None:
             root = self.in_docker_project_root
 
+        print(env)
+        print(root)
+        sys.stdout.flush()
+
         process = await asyncio.create_subprocess_shell(
-            "docker-compose --project-directory . ps -a --format='{{json .}}'",
+            "/usr/local/bin/docker-compose --project-directory . ps -a --format='{{json .}}'",
             env=env,
             cwd=root,
             stdout=subprocess.PIPE,
@@ -60,11 +69,12 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            'docker-compose --project-directory . up --timestamps --no-deps --pull never '
+            cmd := '/usr/local/bin/docker-compose --project-directory . up --timestamps --no-deps --pull missing '
             '--timeout 300 -d ' + ' '.join(services),
             env=env,
             cwd=root,
         )
+        print(cmd)
         await process.wait()
         stdout, stderr = await process.communicate()
         if process.returncode != 0:
@@ -90,7 +100,7 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            f'docker-compose --project-directory . exec {container} {cmd}',
+            f'/usr/local/bin/docker-compose --project-directory . exec {container} {cmd}',
             env=env,
             cwd=root,
         )
@@ -119,7 +129,7 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            f'docker-compose --project-directory . down' + ' '.join(services),
+            f'/usr/local/bin/docker-compose --project-directory . down ' + ' '.join(services),
             env=env,
             cwd=root,
         )
