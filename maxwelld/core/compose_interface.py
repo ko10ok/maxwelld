@@ -36,17 +36,17 @@ class ComposeShellInterface:
         if root is None:
             root = self.in_docker_project_root
 
-        print(env)
-        print(root)
-        sys.stdout.flush()
-
         process = await asyncio.create_subprocess_shell(
-            "/usr/local/bin/docker-compose --project-directory . ps -a --format='{{json .}}'",
+            cmd := "/usr/local/bin/docker-compose --project-directory . ps -a --format='{{json .}}'",
             env=env,
             cwd=root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        CONSOLE.print(Text(
+            f'{cmd}; in {root}; with {env}',
+            style=Style.context
+        ))
         await process.wait()
         stdout, stderr = await process.communicate()
         if process.returncode != 0:
@@ -74,7 +74,10 @@ class ComposeShellInterface:
             env=env,
             cwd=root,
         )
-        print(cmd)
+        CONSOLE.print(Text(
+            f'{cmd}; in {root}; with {env}',
+            style=Style.context
+        ))
         await process.wait()
         stdout, stderr = await process.communicate()
         if process.returncode != 0:
@@ -100,10 +103,14 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            f'/usr/local/bin/docker-compose --project-directory . exec {container} {cmd}',
+            cmd := f'/usr/local/bin/docker-compose --project-directory . exec {container} {cmd}',
             env=env,
             cwd=root,
         )
+        CONSOLE.print(Text(
+            f'{cmd}; in {root}; with {env}',
+            style=Style.context
+        ))
         await process.wait()
         stdout, stderr = await process.communicate()
         if process.returncode != 0:
@@ -129,13 +136,18 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            f'/usr/local/bin/docker-compose --project-directory . down ' + ' '.join(services),
+            cmd := f'/usr/local/bin/docker-compose --project-directory . down ' + ' '.join(services),
             env=env,
             cwd=root,
         )
+        CONSOLE.print(Text(
+            f'{cmd}; in {root}; with {env}',
+            style=Style.context
+        ))
         await process.wait()
         stdout, stderr = await process.communicate()
         if process.returncode != 0:
+            # TODO swap print to CONSOLE
             print(f"Can't down {services} successfully")
             state_result = await self.dc_state()
             if state_result == JobResult.GOOD:

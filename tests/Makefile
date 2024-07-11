@@ -17,7 +17,7 @@ deps: up
 
 .PHONY: e2e-run
 e2e-run: up deps
-	docker-compose exec e2e /venv/bin/python3 -m vedro run . $(args)
+	docker-compose exec e2e /venv/bin/python3 -m vedro run $(args)
 
 .PHONY: watch
 watch: up deps

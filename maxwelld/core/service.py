@@ -107,6 +107,7 @@ class MaxwellDemonService:
     ) -> tuple[EnvironmentId, bool]:
 
         existing_inflight_env_id = await self.get_existing(name, config_template, compose_files)
+        # TODO check all services up
         if existing_inflight_env_id and not force_restart:
             return existing_inflight_env_id, False
 
@@ -124,6 +125,10 @@ class MaxwellDemonService:
         )
 
         new_env_id = get_new_env_id()
+        if parallelism_limit == 1:
+            CONSOLE.print(f'Using default service names with {parallelism_limit=}')
+            new_env_id = EMPTY_ID
+
         target_compose_instance = self._compose_instance_manager.make(
             new_env_id,
             compose_files=compose_files,
@@ -131,8 +136,6 @@ class MaxwellDemonService:
         )
         if parallelism_limit == 1:
             # check if limit 1 - existing already not fit - down all current inflight
-            CONSOLE.print(f'Using default service names with {parallelism_limit=}')
-            new_env_id = EMPTY_ID
             to_down = self._compose_instance_manager.get_envs()
             for instance in to_down:
                 await self._compose_instance_manager.down_env(instance)
