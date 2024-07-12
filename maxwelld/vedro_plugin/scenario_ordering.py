@@ -1,6 +1,7 @@
 from typing import List
 
-from vedro.core import ScenarioOrderer, VirtualScenario
+from vedro.core import ScenarioOrderer
+from vedro.core import VirtualScenario
 
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenario_config
 

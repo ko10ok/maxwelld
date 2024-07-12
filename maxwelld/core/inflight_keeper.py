@@ -2,16 +2,15 @@ import os
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from sys import stdout
 from typing import Union
 
 from rich import json
 
-from maxwelld.env_description.env_types import Environment
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config
+from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
 

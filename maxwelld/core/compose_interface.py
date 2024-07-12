@@ -9,10 +9,10 @@ from rtry import retry
 from maxwelld.core.compose_data_types import ServicesComposeState
 from maxwelld.core.config import Config
 from maxwelld.core.utils.process_command_output import process_output_till_done
+from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.helpers.jobs_result import OperationError
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
-from maxwelld.helpers.jobs_result import JobResult
 
 
 class ComposeShellInterface:

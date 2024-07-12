@@ -1,18 +1,17 @@
 import os
-import sys
 from pathlib import Path
 
 from rich.text import Text
 
-from maxwelld.env_description.env_types import Environment
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
-from maxwelld.core.utils.compose_files import make_env_compose_instance_files
 from maxwelld.core.utils.compose_files import get_compose_services
+from maxwelld.core.utils.compose_files import make_env_compose_instance_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config
+from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
 from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.output.console import CONSOLE
