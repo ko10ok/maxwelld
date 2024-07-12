@@ -39,7 +39,7 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            cmd := f"/usr/local/bin/docker-compose --project-directory {root} ps -a --format='{{json .}}'",
+            cmd := f"/usr/local/bin/docker-compose --project-directory {root}" + " ps -a --format='{{json .}}'",
             env=env,
             cwd=root,
             stdout=subprocess.PIPE,
@@ -73,7 +73,7 @@ class ComposeShellInterface:
 
         process = await asyncio.create_subprocess_shell(
             cmd := f'/usr/local/bin/docker-compose --project-directory {root} up --timestamps --no-deps --pull missing '
-            '--timeout 300 -d ' + ' '.join(services),
+                   '--timeout 300 -d ' + ' '.join(services),
             env=env,
             cwd=root,
         )
@@ -132,7 +132,8 @@ class ComposeShellInterface:
         return JobResult.GOOD, stdout, stderr
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
-    async def dc_down(self, services: list[str], env: dict = None, root: Path | str = None) -> JobResult | OperationError:
+    async def dc_down(self, services: list[str], env: dict = None,
+                      root: Path | str = None) -> JobResult | OperationError:
         print(f'Downing {services} containers')
         sys.stdout.flush()
 

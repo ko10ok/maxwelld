@@ -160,7 +160,7 @@ def patch_docker_compose_file_services(filename: Path,
     write_dc_file(filename, dc_cfg)
 
 
-def parse_migration(migration: dict) -> Handler:
+def parse_migration(migration: dict, service: str) -> Handler:
     assert isinstance(migration, dict), f'{migration} should be "stage: command" entry'
     assert len(migration) == 1, f'{migration} should have only one "stage: command" entry'
     assert list(migration.keys())[
@@ -171,7 +171,8 @@ def parse_migration(migration: dict) -> Handler:
         if isinstance(command, str):
             return Handler(
                 EventStage.get_compose_stage(stage),
-                cmd=command
+                cmd=command,
+                executor=service,
             )
 
         if isinstance(command, list):
@@ -180,11 +181,12 @@ def parse_migration(migration: dict) -> Handler:
                 return Handler(
                     EventStage.get_compose_stage(stage),
                     cmd=' '.join(command[0]),
-                    executor=command[1]
+                    executor=command[1],
                 )
             return Handler(
                 EventStage.get_compose_stage(stage),
-                cmd=' '.join(command)
+                cmd=' '.join(command),
+                executor=service,
             )
 
         if isinstance(command, dict):
@@ -193,7 +195,7 @@ def parse_migration(migration: dict) -> Handler:
             return Handler(
                 EventStage.AFTER_SERVICE_START,
                 cmd=command['cmd'],
-                executor=command['executor']
+                executor=command['executor'],
             )
 
         assert False, (f'migration {command[0]} should have one of:\n'
@@ -208,12 +210,12 @@ def parse_migration(migration: dict) -> Handler:
                        f'formats')
 
 
-def parse_migrations(migrations: list[dict]) -> list[Handler]:
+def parse_migrations(migrations: list[dict], service: str) -> list[Handler]:
     assert isinstance(migrations, list), (f'{migrations} should be list '
                                           f'of {{stage: [cmd, params]}}')
     result_hooks = []
     for migration in migrations:
-        result_hooks += [parse_migration(migration)]
+        result_hooks += [parse_migration(migration, service)]
     return result_hooks
 
 
@@ -228,7 +230,8 @@ def extract_services_inline_migration(compose_files: list[str]) -> dict[str, lis
 
                 if 'x-migration' in dc_cfg['services'][service]:
                     migrations[service] += parse_migrations(
-                        dc_cfg['services'][service]['x-migration']
+                        dc_cfg['services'][service]['x-migration'],
+                        service,
                     )
 
                 assert 'x-migrate' not in dc_cfg['services'][
@@ -290,3 +293,82 @@ def get_compose_services(compose_files: str):
                 if service not in services:
                     services += [service]
     return services
+
+
+def parse_docker_compose(file_paths):
+    services_dict = {}
+
+    for file_path in file_paths.split(':'):
+        dc_cfg = read_dc_file(file_path)
+        services = dc_cfg.get('services', {})
+        for service_name, service_data in services.items():
+            dependencies = service_data.get('depends_on', [])
+            services_dict[service_name] = dependencies
+
+    return services_dict
+
+
+def topological_sort(services_dict):
+    from collections import defaultdict, deque
+
+    # Prepare the adjacency list
+    graph = defaultdict(list)
+    in_degree = defaultdict(int)
+
+    for service, dependencies in services_dict.items():
+        if service not in in_degree:
+            in_degree[service] = 0
+        for dependency in dependencies:
+            graph[dependency].append(service)
+            in_degree[service] += 1
+
+    # Find all sources (services with 0 in-degree)
+    zero_in_degree_queue = deque([service for service in services_dict if in_degree[service] == 0])
+    topologically_sorted_services = []
+
+    while zero_in_degree_queue:
+        level_services = list(zero_in_degree_queue)
+        for _ in range(len(zero_in_degree_queue)):
+            node = zero_in_degree_queue.popleft()
+            topologically_sorted_services.append(node)
+            for neighbor in graph[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    zero_in_degree_queue.append(neighbor)
+
+    if len(topologically_sorted_services) == len(services_dict):
+        return topologically_sorted_services
+    else:
+        raise ValueError("A cycle detected in the services dependencies")
+
+
+def group_by_levels(topologically_sorted_services, services_dict):
+    service_levels = []
+    service_to_level = {}
+
+    # Assign level for each service
+    for service in topologically_sorted_services:
+        max_dependency_level = -1
+        for dependency in services_dict[service]:
+            if dependency in service_to_level:
+                max_dependency_level = max(max_dependency_level, service_to_level[dependency])
+        current_level = max_dependency_level + 1
+        if current_level >= len(service_levels):
+            service_levels.append([])
+        service_levels[current_level].append(service)
+        service_to_level[service] = current_level
+
+    return service_levels
+
+
+def get_compose_services_dependency_tree(compose_files: str):
+    # Parse the docker-compose files to get service dependencies
+    services_dict = parse_docker_compose(compose_files)
+
+    # Perform topological sort to get an ordered list of services
+    topologically_sorted_services = topological_sort(services_dict)
+
+    # Group services by levels based on their dependencies
+    service_levels = group_by_levels(topologically_sorted_services, services_dict)
+
+    return service_levels

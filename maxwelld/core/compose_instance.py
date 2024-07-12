@@ -1,13 +1,14 @@
 import os
+import sys
 from pathlib import Path
 
 from rich.text import Text
 
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
-from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_files import get_compose_services
+from maxwelld.core.utils.compose_files import get_compose_services_dependency_tree
 from maxwelld.core.utils.compose_files import make_env_compose_instance_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config
@@ -83,51 +84,94 @@ class ComposeInstance:
         )
         return compose_instance_files
 
-    async def run(self):
-        self.compose_instance_files = compose_instance_files = await self.generate_config_files()
+    async def run_migration(self, stages, services, env_config_instance, migrations):
+        print(f'running migrations {stages}; {services}, {migrations}')
 
-        # TODO get services from dc
-        services = get_compose_services(self.compose_instance_files.compose_files)
-        if compose_instance_files.env_config_instance.env_services_map:
-            services = list(compose_instance_files.env_config_instance.env_services_map.values())
+        for service in env_config_instance.env:
+            print(f'running migrations {service}')
+            sys.stdout.flush()
+            if service not in services:
+                continue
 
-        CONSOLE.print(
-            Text('Starting services: ', style=Style.info)
-            .append(Text(str(services), style=Style.good))
-        )
-        if compose_instance_files.env_config_instance.env_id == EMPTY_ID:
-            for container in self.except_containers:
-                if container in services:
-                    services.remove(container)
-            print(f'Starting services except original {self.except_containers} already started: {services}')
+            for handler in migrations[service]:
+                if handler.stage not in stages:
+                    continue
+
+                # TODO fix service map if default env
+                target_service = env_config_instance.env_services_map[handler.executor or service]
+
+                substituted_cmd = handler.cmd % env_config_instance.env_services_map
+                migrate_result, stdout, stderr = await self.compose_executor.dc_exec(
+                    target_service, substituted_cmd
+                )
+                assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
+                                                          f"with {substituted_cmd}")
+
+    async def run_services_pack(self, services: list[str], migrations):
+
+        for container in self.except_containers:
+            if container in services:
+                services.remove(container)
+        print(f'Starting services except original {self.except_containers} already started: {services}')
 
         status_result = await self.compose_executor.dc_state()
         assert status_result != JobResult.BAD, f"Can't get first status for services {services}"
 
-        # TODO startup plan with dependencies
+        await self.run_migration(
+            [EventStage.BEFORE_SERVICE_START],
+            services,
+            self.compose_instance_files.env_config_instance,
+            migrations
+        )
+
         up_result = await self.compose_executor.dc_up(services)
         assert up_result == JobResult.GOOD, f"Can't up services {services}"
 
-        # run after service and after all hooks
-        # TODO move after service, after service up
-        for current_stage in [EventStage.BEFORE_ALL, EventStage.BEFORE_SERVICE_START,
-                              EventStage.AFTER_SERVICE_START, EventStage.AFTER_ALL]:
-            for service in compose_instance_files.env_config_instance.env:
-                for handler in compose_instance_files.env_config_instance.env[service].events_handlers + \
-                               compose_instance_files.inline_migrations[service]:
-                    if handler.stage != current_stage:
-                        continue
+        await self.run_migration(
+            [EventStage.AFTER_SERVICE_START],
+            services,
+            self.compose_instance_files.env_config_instance,
+            migrations
+        )
 
-                    # TODO check target service substitution
-                    target_service = compose_instance_files.env_config_instance.env_services_map[
-                        handler.executor or service]
-                    substituted_cmd = handler.cmd % compose_instance_files.env_config_instance.env_services_map
+    async def run(self):
+        self.compose_instance_files = await self.generate_config_files()
 
-                    migrate_result, stdout, stderr = await self.compose_executor.dc_exec(
-                        target_service, substituted_cmd
-                    )
-                    assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
-                                                              f"with {substituted_cmd}")
+        services_tiers = get_compose_services_dependency_tree(self.compose_instance_files.compose_files)
+        CONSOLE.print(
+            Text('Starting services: ', style=Style.info)
+            .append(Text(str(services_tiers), style=Style.good))
+        )
+
+        migrations = {}
+        for service in self.compose_instance_files.env_config_instance.env:
+            if service not in migrations:
+                migrations[service] = []
+            migrations[service] += self.compose_instance_files.env_config_instance.env[service].events_handlers
+            migrations[service] += self.compose_instance_files.inline_migrations[service]
+
+        all_services = [
+            service
+            for service_tier_pack in services_tiers
+            for service in service_tier_pack
+        ]
+
+        await self.run_migration(
+            [EventStage.BEFORE_ALL],
+            all_services,
+            self.compose_instance_files.env_config_instance,
+            migrations
+        )
+
+        for service_tier_pack in services_tiers:
+            await self.run_services_pack(service_tier_pack, migrations)
+
+        await self.run_migration(
+            [EventStage.AFTER_ALL],
+            all_services,
+            self.compose_instance_files.env_config_instance,
+            migrations
+        )
 
 
 class ComposeInstanceManager:

@@ -28,9 +28,11 @@ class Scenario(vedro.Scenario):
     async def given_compose_file_with_service_with_migration(self):
         self.compose_filename = 'docker-compose.basic.yaml'
         self.migration_result_file = '/tmp/migration.log'
-        compose_file(
-            self.compose_filename,
-            content="""
+        self.migration = {}
+        self.services = ['s1', 's2']
+        for service in self.services:
+            self.migration[service] = fake(schema.str.len(1, 10))
+        self.service_compose_content = """
 version: "3"
 
 services:
@@ -38,8 +40,22 @@ services:
     image: busybox:stable
     command: 'sh -c "trap : TERM INT; sleep 604800; wait"'
     x-migration: 
-      - after_all: sh -c 'echo "migration done" > /tmp/migration.log'
+      - after_start: sh -c 'echo "s1 after_start" >> /tmp/migration.log'
+      - after_all: sh -c 'echo "s1 after_all" >> /tmp/migration.log'
+
+  s2:
+    image: busybox:stable
+    command: 'sh -c "trap : TERM INT; sleep 604800; wait"'
+    x-migration: 
+      - before_start: [ [sh -c 'echo "s2 before_start" >> /tmp/migration.log' ], s1 ]
+      - after_start: [ [sh -c 'echo "s2 after_start" >> /tmp/migration.log' ], s1 ]
+    depends_on:
+      s1:
+        condition: service_healthy
 """
+        compose_file(
+            self.compose_filename,
+            content=self.service_compose_content
         )
 
     async def given_no_params_for_env_to_up(self):
@@ -49,7 +65,10 @@ services:
             'config_template': base64_pickled(
                 Environment(
                     'DEFAULT',
-                    Service('s1')
+                    Service('s1'),
+                    Service('s2'),
+                    Service('s3'),
+                    Service('s4'),
                 )
             ),
             'parallelism_limit': 1,
@@ -66,15 +85,35 @@ services:
     async def then_it_should_up_entire_env(self):
         self.containers = retrieve_all_docker_containers()
         assert self.containers == schema.list([
+            ...,
             ContainerSchema % {
                 'Labels': {
                     'com.docker.compose.service': 's1',
                     'com.docker.compose.project.config_files': f'/tmp-envs/no_id/{self.compose_filename}',
                 },
             },
+            ...,
+        ])
+        assert self.containers == schema.list([
+            ...,
+            ContainerSchema % {
+                'Labels': {
+                    'com.docker.compose.service': 's2',
+                    'com.docker.compose.project.config_files': f'/tmp-envs/no_id/{self.compose_filename}',
+                },
+            },
+            ...,
         ])
 
     @retry(attempts=3, delay=1)
-    async def then_it_should_apply_migration(self):
-        self.migration_file_content = get_file_from_container('s1', self.migration_result_file)
-        assert self.migration_file_content == schema.bytes % b'migration done\n'
+    async def then_it_should_apply_s1_migration(self):
+        self.migration_s1_file_content = get_file_from_container('s1', self.migration_result_file)
+        assert self.migration_s1_file_content == schema.bytes % (b's1 after_start\n'
+                                                                 b's2 before_start\n'
+                                                                 b's2 after_start\n'
+                                                                 b's1 after_all\n')
+
+    @retry(attempts=3, delay=1)
+    async def then_it_should_apply_s2_migration(self):
+        self.migration_s2_file_content = get_file_from_container('s2', self.migration_result_file)
+        assert self.migration_s2_file_content == schema.none
