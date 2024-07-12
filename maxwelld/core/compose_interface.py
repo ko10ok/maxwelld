@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 from asyncio import subprocess
 from pathlib import Path
@@ -19,7 +20,7 @@ class ComposeShellInterface:
     def __init__(self, compose_files, in_docker_project_root, execution_envs: dict = None):
         self.compose_files = compose_files
         self.in_docker_project_root = in_docker_project_root
-        self.execution_envs = {
+        self.execution_envs = os.environ | {
             'COMPOSE_FILE': self.compose_files,
             'DOCKER_HOST': Config().docker_host,
             'COMPOSE_PROJECT_NAME': Config().compose_project_name,
