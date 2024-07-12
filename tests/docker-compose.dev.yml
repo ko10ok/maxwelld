@@ -1,0 +1,9 @@
+services:
+  maxwelld:
+    develop:
+      watch:
+        - action: rebuild
+          path: ..
+          target: /maxwelld
+          ignore:
+            - tests/

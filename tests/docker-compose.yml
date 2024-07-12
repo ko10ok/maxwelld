@@ -21,13 +21,6 @@ services:
       interval: 5s
       timeout: 10s
       retries: 100
-    develop:
-      watch:
-        - action: rebuild
-          path: ..
-          target: /maxwelld
-          ignore:
-            - tests/
 
   test-docker-daemon:
     image: docker:dind

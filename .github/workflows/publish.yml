@@ -44,5 +44,13 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Run e2e tests
+      env:
+        COMPOSE_FILE: "docker-compose.yml"
+        CI_DC_DISABLE_TTY: "-T"
+      run: |
+        cd tests
+        make e2e-run
+
     - name: Build and push docker image
       run: make buildx-build-n-push-image
