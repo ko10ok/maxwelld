@@ -105,6 +105,8 @@ class InflightKeeper:
         return None
 
     def get_existing_inflight_env_compose_files(self, env_id: EnvironmentId) -> Union[EnvInstanceConfig, None]:
+        from pprint import pprint
+        pprint(self._started_envs)
         for env_name in self._started_envs:
             if self._started_envs[env_name]['env_id'] == env_id:
                 return self._started_envs[env_name]['params']['compose_files']

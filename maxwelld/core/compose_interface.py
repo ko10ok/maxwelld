@@ -8,6 +8,7 @@ from rtry import retry
 
 from maxwelld.core.compose_data_types import ServicesComposeState
 from maxwelld.core.config import Config
+from maxwelld.core.utils.process_command_output import process_output_till_done
 from maxwelld.helpers.jobs_result import OperationError
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
@@ -31,13 +32,14 @@ class ComposeShellInterface:
         sys.stdout.flush()
 
         if env is None:
-            env = self.execution_envs
+            env = {}
+        env = self.execution_envs | env
 
         if root is None:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            cmd := "/usr/local/bin/docker-compose --project-directory . ps -a --format='{{json .}}'",
+            cmd := f"/usr/local/bin/docker-compose --project-directory {root} ps -a --format='{{json .}}'",
             env=env,
             cwd=root,
             stdout=subprocess.PIPE,
@@ -63,13 +65,14 @@ class ComposeShellInterface:
         sys.stdout.flush()
 
         if env is None:
-            env = self.execution_envs
+            env = {}
+        env = self.execution_envs | env
 
         if root is None:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            cmd := '/usr/local/bin/docker-compose --project-directory . up --timestamps --no-deps --pull missing '
+            cmd := f'/usr/local/bin/docker-compose --project-directory {root} up --timestamps --no-deps --pull missing '
             '--timeout 300 -d ' + ' '.join(services),
             env=env,
             cwd=root,
@@ -92,29 +95,33 @@ class ComposeShellInterface:
         return JobResult.GOOD
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
-    async def dc_exec(self, container: str, cmd: str, env: dict = None, root: Path | str = None) -> JobResult | OperationError:
+    async def dc_exec(self, container: str, cmd: str, env: dict = None, root: Path | str = None
+                      ) -> tuple[JobResult, bytes, bytes] | OperationError:
         print(f'Executing {cmd} in {container} container')
         sys.stdout.flush()
 
         if env is None:
-            env = self.execution_envs
+            env = {}
+        env = self.execution_envs | env
 
         if root is None:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            cmd := f'/usr/local/bin/docker-compose --project-directory . exec {container} {cmd}',
+            cmd := f'/usr/local/bin/docker-compose --project-directory {root} exec {container} {cmd}',
             env=env,
             cwd=root,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         CONSOLE.print(Text(
             f'{cmd}; in {root}; with {env}',
             style=Style.context
         ))
-        await process.wait()
-        stdout, stderr = await process.communicate()
+        stdout, stderr = await process_output_till_done(process)
+
         if process.returncode != 0:
-            print(f"Can't execute {cmd} in {container} successfully")
+            print(f"Can't execute {cmd} in {container} successfully: {stdout}, {stderr}")
             state_result = await self.dc_state()
             if state_result == JobResult.GOOD:
                 return OperationError(
@@ -122,7 +129,7 @@ class ComposeShellInterface:
                 )
             return OperationError(f'Stdout:\n{stdout}\n\nStderr:\n{stderr}\n\nComposeState:\n{state_result}')
 
-        return JobResult.GOOD
+        return JobResult.GOOD, stdout, stderr
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_down(self, services: list[str], env: dict = None, root: Path | str = None) -> JobResult | OperationError:
@@ -130,13 +137,14 @@ class ComposeShellInterface:
         sys.stdout.flush()
 
         if env is None:
-            env = self.execution_envs
+            env = {}
+        env = self.execution_envs | env
 
         if root is None:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            cmd := f'/usr/local/bin/docker-compose --project-directory . down ' + ' '.join(services),
+            cmd := f'/usr/local/bin/docker-compose --project-directory {root} down ' + ' '.join(services),
             env=env,
             cwd=root,
         )

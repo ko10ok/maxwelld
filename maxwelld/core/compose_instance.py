@@ -50,7 +50,7 @@ class ComposeInstance:
         self._env_instance_config = None
         self.compose_interface = compose_interface
 
-        self.compose_instance_files = None
+        self.compose_instance_files: ComposeInstanceFiles = None
         for file in self.compose_files.split(':'):
             assert (file := Path(self.compose_files_path / file)).exists(), f'File {file} doesnt exist'
 
@@ -124,7 +124,9 @@ class ComposeInstance:
                         handler.executor or service]
                     substituted_cmd = handler.cmd % compose_instance_files.env_config_instance.env_services_map
 
-                    migrate_result = await self.compose_executor.dc_exec(target_service, substituted_cmd)
+                    migrate_result, stdout, stderr = await self.compose_executor.dc_exec(
+                        target_service, substituted_cmd
+                    )
                     assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
                                                               f"with {substituted_cmd}")
 

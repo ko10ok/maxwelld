@@ -1,7 +1,5 @@
-import os
-import shutil
 import warnings
-from typing import Type
+from uuid import uuid4
 
 from rich.text import Text
 
@@ -15,6 +13,7 @@ from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.utils.compose_instance_cfg import get_new_env_id
 from maxwelld.core.utils.env_files import make_debug_bash_env
 from maxwelld.env_description.env_types import Environment
+from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
 
@@ -84,7 +83,7 @@ class MaxwellDemonService:
         return {service: env[service].env for service in env}
 
     async def up_compose(self, name: str, config_template: Environment, compose_files: str, isolation=None,
-                                 parallelism_limit=None, verbose=False, force_restart=False) -> tuple[EnvironmentId, bool]:
+                         parallelism_limit=None, verbose=False, force_restart=False) -> tuple[EnvironmentId, bool]:
         warnings.warn('Deprecated, use up_or_get_existing instead')
         return await self.up_or_get_existing(
             name, config_template, compose_files, isolation, parallelism_limit, verbose, force_restart
@@ -102,7 +101,8 @@ class MaxwellDemonService:
         return None
 
     async def up_or_get_existing(
-        self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None, parallelism_limit=None,
+        self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None,
+        parallelism_limit=None,
         verbose=False, force_restart: bool = False
     ) -> tuple[EnvironmentId, bool]:
 
@@ -169,7 +169,7 @@ class MaxwellDemonService:
         self._inflight_keeper.update_inflight_envs(
             name,
             config_template=config_template,
-            compose_files=target_compose_instance.compose_files,
+            compose_files=target_compose_instance_files.compose_files,
             env_id=new_env_id,
         )
 
@@ -187,6 +187,22 @@ class MaxwellDemonService:
         ).dc_state()
         assert isinstance(services_status, ServicesComposeState), "Can't execute docker-compose ps"
         return services_status
+
+    async def exec(self, env_id: str, container: str, command: str):
+        log_file = f'{str(uuid4())}.log'
+        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
+        compose_interface = self._compose_interface(
+            compose_files=env_compose_files,
+            in_docker_project_root=self.in_docker_project_root_path
+        )
+
+        await compose_interface.dc_exec(container, f'sh -c \'{command} > /tmp/{log_file}\'')
+
+        job_result, stdout, stderr = await compose_interface.dc_exec(container, f'cat /tmp/{log_file}')
+        if job_result != JobResult.GOOD:
+            ...
+
+        return stdout
 
 
 class MaxwellDemonServiceManager:

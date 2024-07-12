@@ -7,10 +7,13 @@ from maxwelld.core.compose_data_types import ServicesComposeState
 from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
+from maxwelld.server.commands import DC_EXEC_PATH
 from maxwelld.server.commands import ENV_PATH
 from maxwelld.server.commands import HEALTHCHECK_PATH
 from maxwelld.server.commands import STATUS_PATH
 from maxwelld.server.commands import UP_PATH
+from maxwelld.server.handlers.dc_exec import DcExecRequestParams
+from maxwelld.server.handlers.dc_exec import DcExecResponseParams
 from maxwelld.server.handlers.env import EnvRequestParams
 from maxwelld.server.handlers.env import EnvResponseParams
 from maxwelld.server.handlers.status import StatusResponseParams
@@ -67,6 +70,18 @@ class MaxwellDemonClient:
                 assert response.status == 200, response
                 response_body = StatusResponseParams(**await response.json())
                 return debase64_pickled(response_body['status'])
+
+    async def status(self, env_id: EnvironmentId, container: str, command: str) -> ServicesComposeState:
+        url = f'{self._server_url}{DC_EXEC_PATH}'
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=DcExecRequestParams(
+                env_id=env_id,
+                container=container,
+                command=command
+            )) as response:
+                assert response.status == 200, response
+                response_body = DcExecResponseParams(**await response.json())
+                return debase64_pickled(response_body['output'])
 
     def list_current_in_flight_envs(self, *args, **kwargs):
         raise NotImplementedError()

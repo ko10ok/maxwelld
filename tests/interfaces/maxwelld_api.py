@@ -12,3 +12,10 @@ class MaxwelldApi:
             json=params,
             timeout=360,
         )
+
+    async def exec(self, params):
+        return await self.client.post(
+            f'{self.base_url}/dc/exec',
+            json=params,
+            timeout=360,
+        )
