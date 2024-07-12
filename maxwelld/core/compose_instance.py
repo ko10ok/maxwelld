@@ -17,6 +17,8 @@ from maxwelld.env_description.env_types import EventStage
 from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+from maxwelld.vedro_plugin.logger import WaitVerbosity
+from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 
 INFLIGHT = 'inflight'
 
@@ -85,10 +87,7 @@ class ComposeInstance:
         return compose_instance_files
 
     async def run_migration(self, stages, services, env_config_instance, migrations):
-        print(f'running migrations {stages}; {services}, {migrations}')
-
         for service in env_config_instance.env:
-            print(f'running migrations {service}')
             sys.stdout.flush()
             if service not in services:
                 continue
@@ -100,19 +99,19 @@ class ComposeInstance:
                 # TODO fix service map if default env
                 target_service = env_config_instance.env_services_map[handler.executor or service]
 
-                substituted_cmd = handler.cmd % env_config_instance.env_services_map
+                substituted_cmd = handler.cmd.format(**env_config_instance.env_services_map)
                 migrate_result, stdout, stderr = await self.compose_executor.dc_exec(
                     target_service, substituted_cmd
                 )
                 assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
-                                                          f"with {substituted_cmd}")
+                                                          f"with {substituted_cmd}\n{stdout=}\n{stderr=}\n")
 
     async def run_services_pack(self, services: list[str], migrations):
 
         for container in self.except_containers:
             if container in services:
                 services.remove(container)
-        print(f'Starting services except original {self.except_containers} already started: {services}')
+        print(f'Starting services pack: {services}; except original {self.except_containers} already started')
 
         status_result = await self.compose_executor.dc_state()
         assert status_result != JobResult.BAD, f"Can't get first status for services {services}"
@@ -129,6 +128,21 @@ class ComposeInstance:
 
         await self.run_migration(
             [EventStage.AFTER_SERVICE_START],
+            services,
+            self.compose_instance_files.env_config_instance,
+            migrations
+        )
+
+        checker = wait_all_services_up(attempts=60, delay_s=1).make_checker()
+        check_up_result = await checker(
+            get_services_state=self.compose_executor.dc_state,
+            services=services,
+            verbose=WaitVerbosity.ON_ERROR
+        )
+        assert check_up_result != JobResult.BAD, f"Can't done up services {services}"
+
+        await self.run_migration(
+            [EventStage.AFTER_SERVICE_HEALTHY],
             services,
             self.compose_instance_files.env_config_instance,
             migrations

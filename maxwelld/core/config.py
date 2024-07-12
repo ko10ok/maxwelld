@@ -21,3 +21,4 @@ class Config:
         self.compose_project_name = os.environ.get('COMPOSE_PROJECT_NAME')
         self.default_compose_files: str = os.environ.get('DEFAULT_COMPOSE_FILES')
         assert self.default_compose_files != '', 'unset DEFAULT_COMPOSE_FILES'
+        self.verbose_docker_compose_commands = os.environ.get('VERBOSE_DOCKER_COMPOSE_COMMANDS', False)

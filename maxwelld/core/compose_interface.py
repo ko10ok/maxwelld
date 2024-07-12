@@ -27,6 +27,7 @@ class ComposeShellInterface:
         }
         if execution_envs is not None:
             self.execution_envs |= execution_envs
+        self.verbose_docker_compose_commands = Config().verbose_docker_compose_commands
 
     @retry(attempts=10, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_state(self, env: dict = None, root: Path | str = None) -> ServicesComposeState | OperationError:
@@ -46,12 +47,13 @@ class ComposeShellInterface:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}; in {root}; with {env}',
+            f'{cmd}{verbose}',
             style=Style.context
         ))
-        await process.wait()
-        stdout, stderr = await process.communicate()
+        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
+
         if process.returncode != 0:
             print(f"Can't get container's status {stdout} {stderr}")
             return OperationError(f'Stdout:\n{stdout}\n\nStderr:\n{stderr}')
@@ -77,13 +79,16 @@ class ComposeShellInterface:
                    '--timeout 300 -d ' + ' '.join(services),
             env=env,
             cwd=root,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
+        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}; in {root}; with {env}',
+            f'{cmd}{verbose}',
             style=Style.context
         ))
-        await process.wait()
-        stdout, stderr = await process.communicate()
+        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
+
         if process.returncode != 0:
             print("Can't up environment")
             state_result = await self.dc_state()
@@ -97,7 +102,7 @@ class ComposeShellInterface:
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_exec(self, container: str, cmd: str, env: dict = None, root: Path | str = None
-                      ) -> tuple[JobResult, bytes, bytes] | OperationError:
+                      ) -> tuple[JobResult, bytes, bytes] | tuple[OperationError, bytes, bytes]:
         print(f'Executing {cmd} in {container} container')
         sys.stdout.flush()
 
@@ -115,20 +120,23 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}; in {root}; with {env}',
+            f'{cmd}{verbose}',
             style=Style.context
         ))
-        stdout, stderr = await process_output_till_done(process)
+        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
 
         if process.returncode != 0:
-            print(f"Can't execute {cmd} in {container} successfully: {stdout}, {stderr}")
+            print(f"Can't execute {cmd} in {container} successfully:\n{stdout=}, {stderr=}")
             state_result = await self.dc_state()
             if state_result == JobResult.GOOD:
                 return OperationError(
                     f'Stdout:\n{stdout}\n\nStderr:\n{stderr}\n\nComposeState:\n{state_result.as_rich_text()}'
-                )
-            return OperationError(f'Stdout:\n{stdout}\n\nStderr:\n{stderr}\n\nComposeState:\n{state_result}')
+                ), stdout, stderr
+            return OperationError(
+                f'Stdout:\n{stdout}\n\nStderr:\n{stderr}\n\nComposeState:\n{state_result}'
+            ), stdout, stderr
 
         return JobResult.GOOD, stdout, stderr
 
@@ -149,13 +157,16 @@ class ComposeShellInterface:
             cmd := f'/usr/local/bin/docker-compose --project-directory {root} down ' + ' '.join(services),
             env=env,
             cwd=root,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
+        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}; in {root}; with {env}',
+            f'{cmd}{verbose}',
             style=Style.context
         ))
-        await process.wait()
-        stdout, stderr = await process.communicate()
+        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
+
         if process.returncode != 0:
             # TODO swap print to CONSOLE
             print(f"Can't down {services} successfully")
