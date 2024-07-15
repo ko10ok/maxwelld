@@ -21,6 +21,9 @@ services:
       interval: 5s
       timeout: 10s
       retries: 100
+    depends_on:
+      test-docker-daemon:
+        condition: service_healthy
 
   test-docker-daemon:
     image: docker:dind
