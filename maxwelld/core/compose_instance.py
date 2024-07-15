@@ -4,7 +4,6 @@ from pathlib import Path
 
 from rich.text import Text
 
-from config import Config
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
