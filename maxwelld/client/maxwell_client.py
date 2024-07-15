@@ -8,6 +8,7 @@ from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
 from maxwelld.server.commands import DC_EXEC_PATH
+from maxwelld.server.commands import DC_UP_PATH
 from maxwelld.server.commands import ENV_PATH
 from maxwelld.server.commands import HEALTHCHECK_PATH
 from maxwelld.server.commands import STATUS_PATH
@@ -39,7 +40,7 @@ class MaxwellDemonClient:
     @retry(attempts=10, delay=1, swallow=ClientConnectorError)
     async def up(self, name, config_template: Environment, compose_files: str, isolation=None,
                  parallelism_limit=None, force_restart: bool = False) -> EnvironmentId:
-        url = f'{self._server_url}{UP_PATH}'
+        url = f'{self._server_url}{DC_UP_PATH}'
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=UpRequestParams(
                 name=name,
@@ -71,7 +72,7 @@ class MaxwellDemonClient:
                 response_body = StatusResponseParams(**await response.json())
                 return debase64_pickled(response_body['status'])
 
-    async def status(self, env_id: EnvironmentId, container: str, command: str) -> ServicesComposeState:
+    async def exec(self, env_id: EnvironmentId, container: str, command: str) -> ServicesComposeState:
         url = f'{self._server_url}{DC_EXEC_PATH}'
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=DcExecRequestParams(
