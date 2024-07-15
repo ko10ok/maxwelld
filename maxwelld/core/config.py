@@ -22,5 +22,6 @@ class Config:
         self.default_compose_files: str = os.environ.get('DEFAULT_COMPOSE_FILES')
         assert self.default_compose_files != '', 'unset DEFAULT_COMPOSE_FILES'
         self.verbose_docker_compose_commands = os.environ.get('VERBOSE_DOCKER_COMPOSE_COMMANDS', False)
+        # TODO call it pre migration checks
         self.service_up_check_attempts = int(os.environ.get('SERVICE_UP_ATTEMPTS', 100))
         self.service_up_check_delay = int(os.environ.get('SERVICE_UP_CHECK_DELAY', 3))
