@@ -4,7 +4,9 @@ from pathlib import Path
 
 from rich.text import Text
 
+from config import Config
 from maxwelld.core.compose_interface import ComposeShellInterface
+from maxwelld.core.config import Config
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_files import get_compose_services
@@ -133,11 +135,14 @@ class ComposeInstance:
             migrations
         )
 
-        checker = wait_all_services_up(attempts=60, delay_s=1).make_checker()
+        checker = wait_all_services_up(
+            attempts=Config().service_up_check_attempts,
+            delay_s=Config().service_up_check_delay
+        ).make_checker()
         check_up_result = await checker(
             get_services_state=self.compose_executor.dc_state,
             services=services,
-            verbose=WaitVerbosity.ON_ERROR
+            verbose=WaitVerbosity.COMPACT
         )
         assert check_up_result != JobResult.BAD, f"Can't done up services {services}"
 
