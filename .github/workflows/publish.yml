@@ -44,6 +44,9 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Build and push docker image
+      run: make buildx-build-n-push-image
+
     - name: Run e2e tests
       env:
         COMPOSE_FILE: "docker-compose.yml"
@@ -51,6 +54,3 @@ jobs:
       run: |
         cd tests
         make e2e-run
-
-    - name: Build and push docker image
-      run: make buildx-build-n-push-image
