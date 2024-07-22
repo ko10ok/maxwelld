@@ -11,7 +11,6 @@ from maxwelld import MaxwellDemonClient
 from maxwelld import Service
 from schemas.docker import ContainerSchema
 from schemas.env_name import EnvNameSchema
-from schemas.http_codes import HTTPStatusCodeOk
 
 
 class Scenario(vedro.Scenario):

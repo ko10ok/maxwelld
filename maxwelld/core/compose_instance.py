@@ -101,9 +101,10 @@ class ComposeInstance:
                 migrate_result, stdout, stderr = await self.compose_executor.dc_exec(
                     target_service, substituted_cmd
                 )
-                assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
-                                                          f"with {substituted_cmd}\n{stdout=}\n{stderr=}\n"
-                                                          f"Services logs:\n {self.logs()}")
+                if migrate_result != JobResult.GOOD:
+                    raise ServicesUpError(f"Can't migrate service {target_service}, with {substituted_cmd}\n"
+                                          f"{stdout=}\n{stderr=}\n"
+                                          f"Services logs:\n {await self.logs(services)}") from None
 
     async def run_services_pack(self, services: list[str], migrations):
 

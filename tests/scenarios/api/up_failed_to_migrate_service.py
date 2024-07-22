@@ -30,12 +30,9 @@ version: "3"
 services:
   s2:
     image: busybox:stable
-    command: 'sh -c "echo error service exception log && sleep 5000 && echo `date +%s` > /tmp/healthcheck; trap : TERM INT; sleep 604800; wait"'
-    healthcheck:
-      test: ["CMD", "sh", "-c", "[ -f /tmp/healthcheck ] || exit 1"]
-      interval: 5s
-      timeout: 10s
-      retries: 100
+    command: 'sh -c "trap : TERM INT; sleep 604800; wait"'
+    x-migration:
+        - after_start: sh -c 'sleep && echo 1 > /tmp/migration.log'
 """
         )
 
@@ -63,4 +60,4 @@ services:
     async def then_it_should_out_services_logs(self):
         self.response_json = self.response.json()
         assert self.response_json == schema.dict({'error': schema.str})
-        assert 'error service exception log' in self.response_json['error']
+        assert 'sleep: missing operand' in self.response_json['error']
