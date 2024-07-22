@@ -6,6 +6,7 @@ from rich.text import Text
 
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
+from maxwelld.core.errors import ServicesUpError
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_files import get_compose_services
@@ -57,10 +58,6 @@ class ComposeInstance:
         for file in self.compose_files.split(':'):
             assert (file := Path(self.compose_files_path / file)).exists(), f'File {file} doesnt exist'
 
-        print('ComposeInstance:')
-        print(self.compose_files)
-        print(self.compose_files_path)
-        print()
 
     async def config(self) -> EnvInstanceConfig:
         if self._env_instance_config is None:
@@ -105,7 +102,8 @@ class ComposeInstance:
                     target_service, substituted_cmd
                 )
                 assert migrate_result == JobResult.GOOD, (f"Can't migrate service {target_service}, "
-                                                          f"with {substituted_cmd}\n{stdout=}\n{stderr=}\n")
+                                                          f"with {substituted_cmd}\n{stdout=}\n{stderr=}\n"
+                                                          f"Services logs:\n {self.logs()}")
 
     async def run_services_pack(self, services: list[str], migrations):
 
@@ -125,7 +123,8 @@ class ComposeInstance:
         )
 
         up_result = await self.compose_executor.dc_up(services)
-        assert up_result == JobResult.GOOD, f"Can't up services {services}"
+        assert up_result == JobResult.GOOD, (f"Can't up services {services}\nServices logs:\n "
+                                             f"{await self.logs(services)}")
 
         await self.run_migration(
             [EventStage.AFTER_SERVICE_START],
@@ -143,7 +142,11 @@ class ComposeInstance:
             services=services,
             verbose=WaitVerbosity.COMPACT
         )
-        assert check_up_result != JobResult.BAD, f"Can't done up services {services}"
+        if check_up_result != JobResult.GOOD:
+            raise ServicesUpError(f"Can't done up services {services}\nServices logs:\n "
+                                  f"{await self.logs(services)}") from None
+        # assert check_up_result != JobResult.BAD, (f"Can't done up services {services}\nServices logs:\n "
+        #                                           f"{await self.logs(services)}")
 
         await self.run_migration(
             [EventStage.AFTER_SERVICE_HEALTHY],
@@ -190,6 +193,10 @@ class ComposeInstance:
             self.compose_instance_files.env_config_instance,
             migrations
         )
+
+    async def logs(self, services) -> str:
+        job_result, log = await self.compose_executor.dc_logs(services)
+        return log.decode('utf-8') if job_result == JobResult.GOOD else ''
 
 
 class ComposeInstanceManager:

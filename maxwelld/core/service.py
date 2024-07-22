@@ -103,21 +103,13 @@ class MaxwellDemonService:
     async def up_or_get_existing(
         self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None,
         parallelism_limit=None,
-        verbose=False, force_restart: bool = False
+        verbose=False, force_restart: bool = False,
     ) -> tuple[EnvironmentId, bool]:
 
         existing_inflight_env_id = await self.get_existing(name, config_template, compose_files)
         # TODO check all services up
         if existing_inflight_env_id and not force_restart:
             return existing_inflight_env_id, False
-
-        # existing_inflight_env = self._inflight_keeper.get_existing_inflight_env(
-        #     name, config_template, compose_files
-        # )
-        # if existing_inflight_env and not force_restart:
-        #     CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
-        #                   f'> cd {self.host_project_root_directory} && '
-        #                   f'source ./env-tmp/{existing_inflight_env.env_id}/.env')
 
         CONSOLE.print(
             Text('Starting new environment: ', style=Style.info)
@@ -203,6 +195,22 @@ class MaxwellDemonService:
             ...
 
         return stdout
+
+    async def logs(self, env_id: str, services: list[str]) -> dict[str, bytes]:
+        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
+        compose_interface = self._compose_interface(
+            compose_files=env_compose_files,
+            in_docker_project_root=self.in_docker_project_root_path
+        )
+
+        logs = {}
+        for service in services:
+            job_result, log = await compose_interface.dc_logs([service])
+            logs[service] = log
+            if job_result != JobResult.GOOD:
+                ...
+
+        return logs
 
 
 class MaxwellDemonServiceManager:

@@ -22,6 +22,8 @@ ENV PROJECT_ROOT_DIRECTORY=${PROJECT_ROOT_DIRECTORY:-"/project"}
 ENV TMP_ENVS_DIRECTORY=${TMP_ENVS_DIRECTORY:-"/tmp-envs"}
 ENV TMP_ENVS_REGISTER_FILE=${TMP_ENVS_REGISTER_FILE:-"envs.json"}
 
+RUN echo "alias dc='docker-compose'" >> /root/.bashrc
+
 RUN apk add --no-cache python3 py-pip curl
 RUN python3 -m venv /venv
 

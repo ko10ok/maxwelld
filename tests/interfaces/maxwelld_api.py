@@ -19,3 +19,10 @@ class MaxwelldApi:
             json=params,
             timeout=360,
         )
+
+    async def logs(self, params):
+        return await self.client.post(
+            f'{self.base_url}/dc/logs',
+            json=params,
+            timeout=360,
+        )

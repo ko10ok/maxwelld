@@ -9,6 +9,8 @@ services:
       - DOCKER_HOST=tcp://test-docker-daemon:2375
       - COMPOSE_PROJECT_NAME=test-just-now
       - NON_STOP_CONTAINERS=""
+      - SERVICE_UP_ATTEMPTS=15
+      - SERVICE_UP_CHECK_DELAY=1
     volumes:
       - ./mnt/compose-files:/compose-files
       - ./mnt/project:/project

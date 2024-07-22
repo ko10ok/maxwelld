@@ -101,6 +101,44 @@ class ComposeShellInterface:
         return JobResult.GOOD
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
+    async def dc_logs(self, services: list[str], env: dict = None, root: Path | str = None, logs_param='--no-log-prefix'
+                      ) -> tuple[JobResult, bytes] | tuple[OperationError, None]:
+        sys.stdout.flush()
+
+        if env is None:
+            env = {}
+        env = self.execution_envs | env
+
+        if root is None:
+            root = self.in_docker_project_root
+
+        services = ','.join(services)
+
+        process = await asyncio.create_subprocess_shell(
+            cmd := f'/usr/local/bin/docker-compose --project-directory {root} logs {logs_param} {services}',
+            env=env,
+            cwd=root,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        CONSOLE.print(Text(
+            f'{cmd}',
+            style=Style.context
+        ))
+        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
+
+        if process.returncode != 0:
+            print(f"Can't get {services} logs")
+            state_result = await self.dc_state()
+            if state_result == JobResult.GOOD:
+                return OperationError(
+                    f'Stdout:\n{stdout}\n\nStderr:\n{stderr}\n\nComposeState:\n{state_result.as_rich_text()}'
+                ), None
+            return OperationError(f'Stdout:\n{stdout}\n\nStderr:\n{stderr}\n\nComposeState:\n{state_result}'), None
+
+        return JobResult.GOOD, stdout
+
+    @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_exec(self, container: str, cmd: str, env: dict = None, root: Path | str = None
                       ) -> tuple[JobResult, bytes, bytes] | tuple[OperationError, bytes, bytes]:
         print(f'Executing {cmd} in {container} container')
