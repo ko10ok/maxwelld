@@ -1,12 +1,13 @@
 import asyncio
+import traceback
 from typing import TypedDict
 
 from aiohttp import web
 from aiohttp.web_request import Request
 
 from maxwelld.client.types import EnvironmentId
-from maxwelld.core.errors import ServicesUpError
 from maxwelld.core.service import MaxwellDemonServiceManager
+from maxwelld.errors.up import ServicesUpError
 from maxwelld.helpers.bytes_pickle import debase64_pickled
 
 UP_LOCK = asyncio.Lock()
@@ -57,4 +58,8 @@ async def dc_up(request: Request) -> web.Response:
             )
     except ServicesUpError as e:
         return web.json_response(UpErrorResponseParams(error=e.message), status=422)
+    except AssertionError as e:
+        return web.json_response(UpErrorResponseParams(error=f'Somthing went wrong:\n{str(e)}'), status=422)
+    except BaseException as e:
+        return web.json_response(UpErrorResponseParams(error=f'Somthing went terribly wrong:\n{str(e)}\n\n{traceback.format_exc()}'), status=422)
     return web.json_response(UpResponseParams(env_id=env_id), status=200)

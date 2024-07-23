@@ -1,5 +1,6 @@
 import vedro
 from d42 import fake
+
 from maxwelld.errors.up import ServicesUpError
 from vedro import catched
 
@@ -13,6 +14,36 @@ from schemas.env_name import EnvNameSchema
 
 
 class Scenario(vedro.Scenario):
+    subject = 'up migration with wrong format when {expected_error}'
+
+    @vedro.params(
+        """
+    x-migrations:
+      - after_start: echo 1
+    """.strip('\n'), """have similar to migrations key, do u mean "x-migration" section?"""
+    )
+    @vedro.params(
+        """
+    x-migrate:
+      - after_start: echo 1
+    """.strip('\n'), """have similar to migrations key, do u mean "x-migration" section?"""
+    )
+    @vedro.params(
+        """
+    x-migration:
+      after_start: echo 1
+    """.strip('\n'), """should match format:\nservice:\n  x-migration:\n    - stage: command"""
+    )
+    @vedro.params(
+        """
+    x-migration:
+      - blahblah: echo 1
+    """.strip('\n'), """stage should only be one of ['before_all', 'before_start', 'after_start', 'after_healthy', 'after_all']"""
+    )
+    def __init__(self, migrations, expected_error):
+        self.migrations = migrations
+        self.expected_error = expected_error
+
     async def no_docker_containers(self):
         no_docker_containers()
 
@@ -28,13 +59,8 @@ version: "3"
 services:
   s2:
     image: busybox:stable
-    command: 'sh -c "echo error service exception log && sleep 5000 && echo `date +%s` > /tmp/healthcheck; trap : TERM INT; sleep 604800; wait"'
-    healthcheck:
-      test: ["CMD", "sh", "-c", "[ -f /tmp/healthcheck ] || exit 1"]
-      interval: 5s
-      timeout: 10s
-      retries: 100
-"""
+    command: 'sh -c "trap : TERM INT; sleep 604800; wait"' 
+""" + self.migrations
         )
 
     async def given_client(self):
@@ -57,4 +83,5 @@ services:
         assert self.exception.type is ServicesUpError
 
     async def then_it_should_out_services_logs(self):
-        assert 'error service exception log' in str(self.exception.value)
+        assert '"s2"' in str(self.exception.value)
+        assert self.expected_error in str(self.exception.value)

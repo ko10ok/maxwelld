@@ -4,7 +4,7 @@ from rtry import retry
 
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.compose_data_types import ServicesComposeState
-from maxwelld.core.errors import ServicesUpError
+from maxwelld.errors.up import ServicesUpError
 from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
@@ -53,6 +53,8 @@ class MaxwellDemonClient:
                 force_restart=force_restart,
             )) as response:
                 if response.status == 422:
+                    raise ServicesUpError((await response.json())['error'])
+                if response.status == 500:
                     raise ServicesUpError((await response.json())['error'])
                 assert response.status == 200, response
                 response_body = UpResponseParams(**await response.json())

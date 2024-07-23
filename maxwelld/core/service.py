@@ -138,6 +138,7 @@ class MaxwellDemonService:
                 #              check curren - 1 > limit
                 #                   grab to down some of limit - (current - 1)
 
+        await target_compose_instance.cleanup()
         await target_compose_instance.run()
         target_compose_instance_files = target_compose_instance.compose_instance_files
 

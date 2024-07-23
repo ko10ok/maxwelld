@@ -1,4 +1,5 @@
 import collections
+import os
 import shutil
 import sys
 from _warnings import warn
@@ -13,6 +14,7 @@ from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_fi
 from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
 from maxwelld.env_description.env_types import Handler
+from maxwelld.errors.migrations import ServicesMigrationsError
 
 
 def read_dc_file(filename: str | Path) -> dict:
@@ -161,11 +163,26 @@ def patch_docker_compose_file_services(filename: Path,
 
 
 def parse_migration(migration: dict, service: str) -> Handler:
-    assert isinstance(migration, dict), f'{migration} should be "stage: command" entry'
-    assert len(migration) == 1, f'{migration} should have only one "stage: command" entry'
-    assert list(migration.keys())[
-               0] in EventStage.get_all_compose_stages(), (f"{migration} stage should only be one of "
-                                                           f"{EventStage.get_all_compose_stages()}")
+    if not isinstance(migration, dict):
+        raise ServicesMigrationsError(
+            f'In service: {service} migration line "{migration}" should be one of format:\n'
+            f'  x-migration:\n'
+            f'    - stage: command\n'
+            f'    - stage: [[command], service]\n'
+        )
+    if len(migration) != 1:
+        raise ServicesMigrationsError(
+            f'In service: {service} migration "{migration}" should be nested like:\n'
+            f'  x-migration:\n'
+            f'    - stage: command\n'
+            f'    - stage: [[command], service]\n'
+        )
+
+    if list(migration.keys())[0] not in EventStage.get_all_compose_stages():
+        raise ServicesMigrationsError(
+            f'In "{service}" migration: "{migration}" stage should only be one of '
+            f'{EventStage.get_all_compose_stages()}'
+        )
 
     for stage, command in migration.items():
         if isinstance(command, str):
@@ -190,29 +207,32 @@ def parse_migration(migration: dict, service: str) -> Handler:
             )
 
         if isinstance(command, dict):
-            assert 'cmd' in command, f'migration {migration} should have "cmd" key to exec'
-            assert 'executor' in command[0], f'migration {migration} should have "executor" key for target container'
-            return Handler(
-                EventStage.AFTER_SERVICE_START,
-                cmd=command['cmd'],
-                executor=command['executor'],
+            raise ServicesMigrationsError(
+                f'In service: {service} migration "{migration}" should be nested like:\n'
+                f'  x-migration:\n'
+                f'    - stage: command\n'
+                f'    - stage: [[command], service]\n'
             )
 
-        assert False, (f'migration {command[0]} should have one of:\n'
-                       f'x-migration:\n'
-                       f'  - stage: command\n'
-                       f'  - stage: [ command, cmd_part ]\n'
-                       '  - stage: [ [command, cmd_part], executor ]\n'
-                       '  - stage: { cmd: command, executor: executor_container_name}\n'
-                       f'  - stage:\n'
-                       f'      cmd: command\n'
-                       f'      executor: executor_container_name\n'
-                       f'formats')
+        raise ServicesMigrationsError(f'migration {command[0]} should have one of:\n'
+                                      f'x-migration:\n'
+                                      f'  - stage: command\n'
+                                      f'  - stage: [ command, cmd_part ]\n'
+                                      '  - stage: [ [command, cmd_part], executor ]\n'
+                                      '  - stage: { cmd: command, executor: executor_container_name}\n'
+                                      f'  - stage:\n'
+                                      f'      cmd: command\n'
+                                      f'      executor: executor_container_name\n'
+                                      f'formats')
 
 
 def parse_migrations(migrations: list[dict], service: str) -> list[Handler]:
-    assert isinstance(migrations, list), (f'{migrations} should be list '
-                                          f'of {{stage: [cmd, params]}}')
+    if not isinstance(migrations, list):
+        raise ServicesMigrationsError(f'In "{service}" migration:{migrations} should match format:\n'
+                                      f'service:\n'
+                                      f'  x-migration:\n'
+                                      f'    - stage: command')
+
     result_hooks = []
     for migration in migrations:
         result_hooks += [parse_migration(migration, service)]
@@ -234,10 +254,10 @@ def extract_services_inline_migration(compose_files: list[str]) -> dict[str, lis
                         service,
                     )
 
-                assert 'x-migrate' not in dc_cfg['services'][
-                    service], f'{service} have "x-migrate", do u mean "x-migration" section?'
-                assert 'x-migrations' not in dc_cfg['services'][
-                    service], f'{service} have "x-migrations", do u mean "x-migration" section?'
+                if ('x-migrate' in dc_cfg['services'][service]) or ('x-migrations' in dc_cfg['services'][service]):
+                    raise ServicesMigrationsError(
+                        f'Service "{service}" have similar to migrations key, do u mean "x-migration" section?'
+                    )
 
     return migrations
 
@@ -250,7 +270,13 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
                                     tmp_env_path: Path,
                                     ) -> ComposeInstanceFiles:
     dst = tmp_env_path / env_config_instance.env_id
+
     dst.mkdir(parents=True, exist_ok=True)
+    for file in dst.iterdir():
+        if file.is_file():
+            file.unlink()
+
+
 
     for file in compose_files.split(':'):
         src_file = compose_files_path / file

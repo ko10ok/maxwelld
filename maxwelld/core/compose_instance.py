@@ -6,7 +6,7 @@ from rich.text import Text
 
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
-from maxwelld.core.errors import ServicesUpError
+from maxwelld.errors.up import ServicesUpError
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_files import get_compose_services
@@ -145,8 +145,6 @@ class ComposeInstance:
         if check_up_result != JobResult.GOOD:
             raise ServicesUpError(f"Can't done up services {services}\nServices logs:\n "
                                   f"{await self.logs(services)}") from None
-        # assert check_up_result != JobResult.BAD, (f"Can't done up services {services}\nServices logs:\n "
-        #                                           f"{await self.logs(services)}")
 
         await self.run_migration(
             [EventStage.AFTER_SERVICE_HEALTHY],
@@ -154,6 +152,9 @@ class ComposeInstance:
             self.compose_instance_files.env_config_instance,
             migrations
         )
+
+    async def cleanup(self):
+        ...
 
     async def run(self):
         self.compose_instance_files = await self.generate_config_files()

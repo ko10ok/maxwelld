@@ -28,6 +28,7 @@ class ComposeShellInterface:
         if execution_envs is not None:
             self.execution_envs |= execution_envs
         self.verbose_docker_compose_commands = Config().verbose_docker_compose_commands
+        self.verbose_docker_compose_ps_commands = Config().verbose_docker_compose_ps_commands
 
     @retry(attempts=10, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_state(self, env: dict = None, root: Path | str = None) -> ServicesComposeState | OperationError:
@@ -47,12 +48,11 @@ class ComposeShellInterface:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}{verbose}',
+            f'{cmd}',
             style=Style.context
         ))
-        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
+        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_ps_commands)
 
         if process.returncode != 0:
             print(f"Can't get container's status {stdout} {stderr}")
@@ -82,10 +82,13 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
+        verbose = f'; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}{verbose}',
+            f'{cmd}',
             style=Style.context
+        ) + ' ' + Text(
+            f'{verbose}',
+            style=Style.regular
         ))
         stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
 
@@ -158,10 +161,13 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
+        verbose = f'; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}{verbose}',
+            f'{cmd}',
             style=Style.context
+        ) + ' ' + Text(
+            f'{verbose}',
+            style=Style.regular
         ))
         stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
 
@@ -198,10 +204,13 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        verbose = '; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
+        verbose = f'; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
         CONSOLE.print(Text(
-            f'{cmd}{verbose}',
+            f'{cmd}',
             style=Style.context
+        ) + ' ' + Text(
+            f'{verbose}',
+            style=Style.regular
         ))
         stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
 
