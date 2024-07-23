@@ -58,7 +58,6 @@ class ComposeInstance:
         for file in self.compose_files.split(':'):
             assert (file := Path(self.compose_files_path / file)).exists(), f'File {file} doesnt exist'
 
-
     async def config(self) -> EnvInstanceConfig:
         if self._env_instance_config is None:
             self._env_instance_config = make_env_instance_config(
@@ -196,7 +195,7 @@ class ComposeInstance:
         )
 
     async def logs(self, services) -> str:
-        job_result, log = await self.compose_executor.dc_logs(services)
+        job_result, log = await self.compose_executor.dc_logs(services, logs_param='')
         return log.decode('utf-8') if job_result == JobResult.GOOD else ''
 
 
