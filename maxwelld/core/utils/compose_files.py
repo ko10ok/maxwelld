@@ -272,21 +272,22 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
     dst = tmp_env_path / env_config_instance.env_id
 
     dst.mkdir(parents=True, exist_ok=True)
+    print(dst)
     for file in dst.iterdir():
+        print(file)
         if file.is_file():
             file.unlink()
 
+    for file in dst.iterdir():
+        print(file)
 
+    print('done')
+    sys.stdout.flush()
 
     for file in compose_files.split(':'):
         src_file = compose_files_path / file
         dst_file = dst / file
         shutil.copy(src_file, dst_file)
-
-        print(env_config_instance)
-        print(env_config_instance.env)  # Enviroment()
-        print(env_config_instance.env_services_map)  # None
-        sys.stdout.flush()
 
         # TODO fill dc files with env from .envs files as default
         patch_docker_compose_file_services(

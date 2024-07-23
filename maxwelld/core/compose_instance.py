@@ -2,7 +2,9 @@ import os
 import sys
 from pathlib import Path
 
+import yaml
 from rich.text import Text
+from yaml.parser import ParserError
 
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
@@ -252,7 +254,10 @@ class ComposeInstanceManager:
             filenames.remove('.env')
         docker_files = get_new_instance_compose_files(':'.join(filenames), self.tmp_envs_path / env_id)
 
-        services = get_compose_services(docker_files)
+        try:
+            services = get_compose_services(docker_files)
+        except ParserError:
+            return []
         print(f'Down services: {services}, except {self.except_containers}')
         for container in self.except_containers:
             if container in services:
