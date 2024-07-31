@@ -47,15 +47,14 @@ async def dc_up(request: Request) -> web.Response:
     # TODO move to up_or_get_existing
     # TODO kill existing composes??
     try:
-        async with UP_LOCK:
-            env_id, is_new = await MaxwellDemonServiceManager().get().up_or_get_existing(
-                name=params['name'],
-                config_template=config_template,
-                compose_files=params['compose_files'],
-                isolation=params['isolation'],
-                parallelism_limit=params['parallelism_limit'],
-                force_restart=params['force_restart'],
-            )
+        env_id, is_new = await MaxwellDemonServiceManager().get().up_or_get_existing(
+            name=params['name'],
+            config_template=config_template,
+            compose_files=params['compose_files'],
+            isolation=params['isolation'],
+            parallelism_limit=params['parallelism_limit'],
+            force_restart=params['force_restart'],
+        )
     except ServicesUpError as e:
         return web.json_response(UpErrorResponseParams(error=e.message), status=422)
     except AssertionError as e:
