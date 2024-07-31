@@ -272,17 +272,9 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
     dst = tmp_env_path / env_config_instance.env_id
 
     dst.mkdir(parents=True, exist_ok=True)
-    print(dst)
     for file in dst.iterdir():
-        print(file)
         if file.is_file():
             file.unlink()
-
-    for file in dst.iterdir():
-        print(file)
-
-    print('done')
-    sys.stdout.flush()
 
     for file in compose_files.split(':'):
         src_file = compose_files_path / file
