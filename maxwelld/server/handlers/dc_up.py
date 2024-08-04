@@ -43,6 +43,7 @@ class UpErrorResponseParams(TypedDict):
 async def dc_up(request: Request) -> web.Response:
     params: DcUpRequestParams = DC_UP_DEFAULTS | await request.json()
     config_template = debase64_pickled(params['config_template']) if params['config_template'] else None
+    release_id = request.headers.get('x-release-id', None)
 
     # TODO move to up_or_get_existing
     # TODO kill existing composes??
@@ -54,6 +55,7 @@ async def dc_up(request: Request) -> web.Response:
             isolation=params['isolation'],
             parallelism_limit=params['parallelism_limit'],
             force_restart=params['force_restart'],
+            release_id=release_id
         )
     except ServicesUpError as e:
         return web.json_response(UpErrorResponseParams(error=e.message), status=422)

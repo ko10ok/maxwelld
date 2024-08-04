@@ -5,12 +5,14 @@ from maxwelld import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.server.handlers.dc_up import DcUpRequestParams
 from schemas.env_name import EnvNameSchema
-from schemas.http_codes import HTTPStatusCodeOk
 
 
-async def services_started(compose_files: str, environment: Environment):
+async def services_started(compose_files: str, environment: Environment, env_name: str = None, headers: dict = None):
+    if env_name is None:
+        env_name = fake(EnvNameSchema)
+
     params: DcUpRequestParams = {
-        'name': fake(EnvNameSchema),
+        'name': env_name,
         'compose_files': compose_files,
         'config_template': base64_pickled(environment),
         'parallelism_limit': 1,
@@ -18,8 +20,8 @@ async def services_started(compose_files: str, environment: Environment):
         'force_restart': False,
     }
 
-    response = await MaxwelldApi().up(params)
+    response = await MaxwelldApi().up(params, headers=headers)
 
-    assert response.status_code == HTTPStatusCodeOk
+    assert response.status_code == 200, response.text
 
     return response.json()

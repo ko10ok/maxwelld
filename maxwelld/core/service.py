@@ -104,6 +104,7 @@ class MaxwellDemonService:
         self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None,
         parallelism_limit=None,
         verbose=False, force_restart: bool = False,
+        release_id: str = None,
     ) -> tuple[EnvironmentId, bool]:
 
         existing_inflight_env_id = await self.get_existing(name, config_template, compose_files)
@@ -125,6 +126,7 @@ class MaxwellDemonService:
             new_env_id,
             compose_files=compose_files,
             config_template=config_template,
+            release_id=release_id,
         )
         if parallelism_limit == 1:
             # check if limit 1 - existing already not fit - down all current inflight

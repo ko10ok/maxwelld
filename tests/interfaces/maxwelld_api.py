@@ -6,10 +6,11 @@ class MaxwelldApi:
         self.base_url = 'http://maxwelld'
         self.client = httpx.AsyncClient()
 
-    async def up(self, params):
+    async def up(self, params, headers=None):
         return await self.client.post(
             f'{self.base_url}/dc/up',
             json=params,
+            headers=headers,
             timeout=360,
         )
 

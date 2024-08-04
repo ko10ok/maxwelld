@@ -1,7 +1,5 @@
 import collections
-import os
 import shutil
-import sys
 from _warnings import warn
 from copy import deepcopy
 from pathlib import Path
@@ -138,15 +136,33 @@ def patch_services_names(dc_cfg: dict, services_map: dict[str, str]) -> dict:
     return new_service_dc_cfg
 
 
+def patch_labels(dc_cfg: dict, release_id: str):
+    new_service_dc_cfg = deepcopy(dc_cfg)
+    for service in dc_cfg['services']:
+        srv_cfg = deepcopy(dc_cfg['services'][service])
+        if 'labels' not in srv_cfg:
+            new_service_dc_cfg['services'][service]['labels'] = {}
+
+        new_service_dc_cfg['services'][service]['labels'] = new_service_dc_cfg['services'][service]['labels'] | {
+            'com.docker.maxwelld.release_id': release_id,
+        }
+    return new_service_dc_cfg
+
+
 def patch_docker_compose_file_services(filename: Path,
                                        host_root: Path,
                                        services_environment_vars: Environment,
                                        network_name: str,
                                        # TODO network_name = [projectname]_default
-                                       services_map: dict[str, str] | None) -> None:
+                                       services_map: dict[str, str] | None,
+                                       release_id: str = None,
+                                       ) -> None:
     dc_cfg = read_dc_file(filename)
 
     dc_cfg = patch_network(dc_cfg, network_name=network_name)
+
+    if release_id:
+        dc_cfg = patch_labels(dc_cfg, release_id)
 
     if services_map:
         dc_cfg = patch_service_set(dc_cfg, services_map)  # todo use servcie_map
@@ -268,6 +284,7 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
                                     host_project_root_directory,
                                     compose_files_path: Path,
                                     tmp_env_path: Path,
+                                    release_id: str = None
                                     ) -> ComposeInstanceFiles:
     dst = tmp_env_path / env_config_instance.env_id
 
@@ -287,7 +304,8 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             host_root=host_project_root_directory,
             services_environment_vars=env_config_instance.env,
             network_name=f'{project_network_name}_default',
-            services_map=env_config_instance.env_services_map
+            services_map=env_config_instance.env_services_map,
+            release_id=release_id,
         )
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
