@@ -7,3 +7,5 @@ services:
           target: /maxwelld
           ignore:
             - tests/
+            - README.md
+            - LICENSE

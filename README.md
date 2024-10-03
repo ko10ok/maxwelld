@@ -64,5 +64,24 @@ class Config(vedro.Config):
             }
 ```
 
-## Architecture design
-![Architecture design](https://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ko10ok/maxwelld/server_split_prototype/ARCH.puml)
+# Contributing to project
+
+## Run e2e tests
+```bash
+cd tests
+make watch  # separate terminal to watch for changes
+make e2e-run
+
+# verbose output 
+make e2e-run args='-vvv'
+
+# specific test
+make e2e-run args='scenarios/api/up_env_with_custom_services_set_enviroment.py -vvv'
+```
+
+## Update in-image maxwelld library / rebuild dependencies
+```bash
+make watch -B  # kill & restart existing watcher
+# or
+make e2e-run -B  # rebuild before test run
+```

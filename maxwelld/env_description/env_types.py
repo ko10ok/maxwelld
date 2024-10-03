@@ -156,6 +156,5 @@ class Environment:  # TODO rename Environment
             service.as_dict() for service in self._services
         ]
 
-
 class SingletonService(Service):
     singleton: bool = False
