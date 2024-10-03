@@ -14,7 +14,7 @@ from schemas.env_name import EnvNameSchema
 
 
 class Scenario(vedro.Scenario):
-    subject = 'up migration with wrong format when {expected_error}'
+    subject = 'up migration with wrong format with: \n{migrations}'
 
     @vedro.params(
         """
