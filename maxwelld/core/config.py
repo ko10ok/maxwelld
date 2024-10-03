@@ -26,3 +26,4 @@ class Config:
         # TODO call it pre migration checks
         self.service_up_check_attempts = int(os.environ.get('PRE_MIGRATIONS_CHECK_SERVICE_UP_ATTEMPTS', 60))
         self.service_up_check_delay = int(os.environ.get('PRE_MIGRATIONS_CHECK_SERVICE_UP_CHECK_DELAY', 3))
+        self.docker_compose_extra_exec_params = os.environ.get('DOCKER_COMPOSE_EXTRA_EXEC_PARAMS', '-T')

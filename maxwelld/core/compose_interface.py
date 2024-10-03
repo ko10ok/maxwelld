@@ -29,6 +29,7 @@ class ComposeShellInterface:
             self.execution_envs |= execution_envs
         self.verbose_docker_compose_commands = Config().verbose_docker_compose_commands
         self.verbose_docker_compose_ps_commands = Config().verbose_docker_compose_ps_commands
+        self.extra_exec_params = Config().docker_compose_extra_exec_params
 
     @retry(attempts=10, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_state(self, env: dict = None, root: Path | str = None) -> ServicesComposeState | OperationError:
@@ -155,7 +156,7 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process = await asyncio.create_subprocess_shell(
-            cmd := f'/usr/local/bin/docker-compose --project-directory {root} exec {container} {cmd}',
+            cmd := f'/usr/local/bin/docker-compose --project-directory {root} exec {self.extra_exec_params} {container} {cmd}',
             env=env,
             cwd=root,
             stdout=asyncio.subprocess.PIPE,
