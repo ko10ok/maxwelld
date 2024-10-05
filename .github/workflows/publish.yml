@@ -47,6 +47,11 @@ jobs:
     - name: Build and push docker image
       run: make buildx-build-n-push-image
 
+    - name: Install DC
+      uses: KengoTODA/actions-setup-docker-compose@v1
+      with:
+        version: '2.29.2'
+
     - name: Run e2e tests
       env:
         COMPOSE_FILE: "docker-compose.yml"

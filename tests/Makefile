@@ -1,4 +1,5 @@
 export COMPOSE_FILE ?= docker-compose.yml:docker-compose.dev.yml
+export VERSION=$(shell cat ../maxwelld/version)
 
 .PHONY: down
 down:

@@ -1,7 +1,7 @@
 services:
   maxwelld:
     user: root
-    image: ko10ok/maxwelld:0.3.2
+    image: ko10ok/maxwelld:${VERSION}
     environment:
       - HOST_PROJECT_ROOT_DIRECTORY=env HOST_PROJECT_ROOT_DIRECTORY value
       - PROJECT_NAME=maxwelld-tests
