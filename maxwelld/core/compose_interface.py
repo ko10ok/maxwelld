@@ -1,5 +1,6 @@
 import asyncio
 import os
+import pprint
 import sys
 from asyncio import subprocess
 from pathlib import Path
@@ -28,6 +29,7 @@ class ComposeShellInterface:
         if execution_envs is not None:
             self.execution_envs |= execution_envs
         self.verbose_docker_compose_commands = Config().verbose_docker_compose_commands
+        self.debug_docker_compose_commands = Config().debug_docker_compose_commands
         self.verbose_docker_compose_ps_commands = Config().verbose_docker_compose_ps_commands
         self.extra_exec_params = Config().docker_compose_extra_exec_params
 
@@ -83,12 +85,12 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        verbose = f'; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
+        debug = f'; in {root}; with {pprint.pformat(env)}' if self.debug_docker_compose_commands else ''
         CONSOLE.print(Text(
             f'{cmd}',
             style=Style.context
         ) + ' ' + Text(
-            f'{verbose}',
+            f'{debug}',
             style=Style.regular
         ))
         stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
@@ -116,6 +118,8 @@ class ComposeShellInterface:
         if root is None:
             root = self.in_docker_project_root
 
+        if services is None:
+            services = []
         services = ','.join(services)
 
         process = await asyncio.create_subprocess_shell(
@@ -162,12 +166,12 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        verbose = f'; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
+        debug = f'; in {root}; with {env}' if self.debug_docker_compose_commands else ''
         CONSOLE.print(Text(
             f'{cmd}',
             style=Style.context
         ) + ' ' + Text(
-            f'{verbose}',
+            f'{debug}',
             style=Style.regular
         ))
         stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
@@ -205,12 +209,12 @@ class ComposeShellInterface:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        verbose = f'; in {root}; with {env}' if self.verbose_docker_compose_commands else ''
+        debug = f'; in {root}; with {env}' if self.debug_docker_compose_commands else ''
         CONSOLE.print(Text(
             f'{cmd}',
             style=Style.context
         ) + ' ' + Text(
-            f'{verbose}',
+            f'{debug}',
             style=Style.regular
         ))
         stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)

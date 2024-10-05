@@ -21,9 +21,10 @@ class Config:
         self.compose_project_name = os.environ.get('COMPOSE_PROJECT_NAME')
         self.default_compose_files: str = os.environ.get('DEFAULT_COMPOSE_FILES')
         assert self.default_compose_files != '', 'unset DEFAULT_COMPOSE_FILES'
-        self.verbose_docker_compose_commands = bool(os.environ.get('VERBOSE_DOCKER_COMPOSE_OUTPUT_TO_STDOUT', False))
+        self.debug_docker_compose_commands = bool(os.environ.get('DEBUG_DOCKER_COMPOSE_OUTPUT_TO_STDOUT', False))
+        self.verbose_docker_compose_commands = bool(os.environ.get('VERBOSE_DOCKER_COMPOSE_OUTPUT_TO_STDOUT', True))
         self.verbose_docker_compose_ps_commands = bool(os.environ.get('VERBOSE_DOCKER_COMPOSE_PS_OUTPUT_TO_STDOUT', False))
         # TODO call it pre migration checks
-        self.service_up_check_attempts = int(os.environ.get('PRE_MIGRATIONS_CHECK_SERVICE_UP_ATTEMPTS', 60))
+        self.service_up_check_attempts = int(os.environ.get('PRE_MIGRATIONS_CHECK_SERVICE_UP_ATTEMPTS', 100))
         self.service_up_check_delay = int(os.environ.get('PRE_MIGRATIONS_CHECK_SERVICE_UP_CHECK_DELAY', 3))
         self.docker_compose_extra_exec_params = os.environ.get('DOCKER_COMPOSE_EXTRA_EXEC_PARAMS', '-T')

@@ -106,16 +106,18 @@ class ComposeInstance:
                     target_service, substituted_cmd
                 )
                 if migrate_result != JobResult.GOOD:
-                    raise ServicesUpError(f"Can't migrate service {target_service}, with {substituted_cmd}\n"
-                                          f"{stdout=}\n{stderr=}\n"
-                                          f"Services logs:\n {await self.logs(services)}") from None
+                    services_status = await self.compose_executor.dc_state()
+                    raise ServicesUpError(f"Can't migrate service {target_service}, with {substituted_cmd}"
+                                          f"\n{stdout=}\n{stderr=}"
+                                          f"\nServices logs:\n {await self.logs()}"
+                                          f"\nServices status:\n {services_status.as_rich_text()}") from None
 
     async def run_services_pack(self, services: list[str], migrations):
 
         for container in self.except_containers:
             if container in services:
                 services.remove(container)
-        print(f'Starting services pack: {services}; except original {self.except_containers} already started')
+        print(f'Starting services pack: {services}; except: {self.except_containers}')
 
         status_result = await self.compose_executor.dc_state()
         assert status_result != JobResult.BAD, f"Can't get first status for services {services}"
@@ -129,7 +131,11 @@ class ComposeInstance:
 
         up_result = await self.compose_executor.dc_up(services)
         assert up_result == JobResult.GOOD, (f"Can't up services {services}\nServices logs:\n "
-                                             f"{await self.logs(services)}")
+                                             f"{await self.logs()}")
+        services_status = await self.compose_executor.dc_state()
+
+        # !!!!!! up process asynchronous
+        # !!!!!! check services started before migrations
 
         await self.run_migration(
             [EventStage.AFTER_SERVICE_START],
@@ -148,8 +154,11 @@ class ComposeInstance:
             verbose=WaitVerbosity.COMPACT
         )
         if check_up_result != JobResult.GOOD:
-            raise ServicesUpError(f"Can't done up services {services}\nServices logs:\n "
-                                  f"{await self.logs(services)}") from None
+            services_status = await self.compose_executor.dc_state()
+            raise ServicesUpError(f"Can't up services {services} for "
+                                  f"{Config().service_up_check_attempts*Config().service_up_check_delay}s"
+                                  f"\nServices logs:\n {await self.logs()}"
+                                  f"\nServices status:\n {services_status.as_rich_text()}") from None
 
         await self.run_migration(
             [EventStage.AFTER_SERVICE_HEALTHY],
@@ -200,7 +209,7 @@ class ComposeInstance:
             migrations
         )
 
-    async def logs(self, services) -> str:
+    async def logs(self, services=None) -> str:
         job_result, log = await self.compose_executor.dc_logs(services, logs_param='')
         return log.decode('utf-8') if job_result == JobResult.GOOD else ''
 
