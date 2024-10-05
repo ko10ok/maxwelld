@@ -136,6 +136,8 @@ class VedroMaxwellPlugin(Plugin):
 
     async def handle_scenarios(self, event: StartupEvent) -> None:
         needed_configs = extract_scenarios_configs_set(event.scheduler.scheduled)
+        if not needed_configs:
+            return
 
         CONSOLE.print(
             Text(f'Tests requests configs: ') + reduce(
