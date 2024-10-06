@@ -133,7 +133,7 @@ class ComposeShellInterface:
             f'{cmd}',
             style=Style.context
         ))
-        stdout, stderr = await process_output_till_done(process, self.verbose_docker_compose_commands)
+        stdout, stderr = await process_output_till_done(process, False)
 
         if process.returncode != 0:
             print(f"Can't get {services} logs")
