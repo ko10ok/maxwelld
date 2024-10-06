@@ -120,7 +120,7 @@ class ComposeShellInterface:
 
         if services is None:
             services = []
-        services = ','.join(services)
+        services = ' '.join(services)
 
         process = await asyncio.create_subprocess_shell(
             cmd := f'/usr/local/bin/docker-compose --project-directory {root} logs {logs_param} {services}',
