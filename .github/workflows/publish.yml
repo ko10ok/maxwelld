@@ -58,4 +58,4 @@ jobs:
         CI_DC_DISABLE_TTY: "-T"
       run: |
         cd tests
-        make e2e-run
+        make e2e-run args='-vvv'

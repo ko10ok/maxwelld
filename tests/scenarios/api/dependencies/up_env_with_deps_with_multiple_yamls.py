@@ -32,8 +32,7 @@ version: "3"
 services:
   s1:
     image: busybox:stable
-    command: 'sh -c "echo error service exception log && sleep 5000 && echo `date +%s` > /tmp/healthcheck; trap : 
-    TERM INT; sleep 604800; wait"'
+    command: 'sh -c "echo error service exception log && sleep 5000 && echo `date +%s` > /tmp/healthcheck; trap : TERM INT; sleep 604800; wait"'
     healthcheck:
       test: ["CMD", "sh", "-c", "[ -f /tmp/healthcheck ] || exit 1"]
       interval: 5s
