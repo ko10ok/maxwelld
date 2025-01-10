@@ -5,3 +5,4 @@ class Style:
     good = 'green'
     mark = 'green bold'
     mark_neutral = 'cyan'
+    context = 'magenta'

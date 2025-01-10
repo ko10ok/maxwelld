@@ -4,13 +4,19 @@ from rtry import retry
 
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.compose_data_types import ServicesComposeState
+from maxwelld.errors.up import ServicesUpError
 from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.bytes_pickle import debase64_pickled
+from maxwelld.server.commands import DC_EXEC_PATH
+from maxwelld.server.commands import DC_LOGS_PATH
+from maxwelld.server.commands import DC_UP_PATH
 from maxwelld.server.commands import ENV_PATH
 from maxwelld.server.commands import HEALTHCHECK_PATH
 from maxwelld.server.commands import STATUS_PATH
-from maxwelld.server.commands import UP_PATH
+from maxwelld.server.handlers.dc_exec import DcExecRequestParams
+from maxwelld.server.handlers.dc_exec import DcExecResponseParams
+from maxwelld.server.handlers.dc_logs import DcLogsRequestParams
 from maxwelld.server.handlers.env import EnvRequestParams
 from maxwelld.server.handlers.env import EnvResponseParams
 from maxwelld.server.handlers.status import StatusResponseParams
@@ -36,7 +42,7 @@ class MaxwellDemonClient:
     @retry(attempts=10, delay=1, swallow=ClientConnectorError)
     async def up(self, name, config_template: Environment, compose_files: str, isolation=None,
                  parallelism_limit=None, force_restart: bool = False) -> EnvironmentId:
-        url = f'{self._server_url}{UP_PATH}'
+        url = f'{self._server_url}{DC_UP_PATH}'
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=UpRequestParams(
                 name=name,
@@ -46,6 +52,10 @@ class MaxwellDemonClient:
                 parallelism_limit=parallelism_limit,
                 force_restart=force_restart,
             )) as response:
+                if response.status == 422:
+                    raise ServicesUpError((await response.json())['error'])
+                if response.status == 500:
+                    raise ServicesUpError((await response.json())['error'])
                 assert response.status == 200, response
                 response_body = UpResponseParams(**await response.json())
                 return response_body['env_id']
@@ -67,6 +77,29 @@ class MaxwellDemonClient:
                 assert response.status == 200, response
                 response_body = StatusResponseParams(**await response.json())
                 return debase64_pickled(response_body['status'])
+
+    async def exec(self, env_id: EnvironmentId, container: str, command: str) -> ServicesComposeState:
+        url = f'{self._server_url}{DC_EXEC_PATH}'
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=DcExecRequestParams(
+                env_id=env_id,
+                container=container,
+                command=command
+            )) as response:
+                assert response.status == 200, response
+                response_body = DcExecResponseParams(**await response.json())
+                return debase64_pickled(response_body['output'])
+
+    async def logs(self, env_id: EnvironmentId, services: list[str]) -> dict[str, bytes]:
+        url = f'{self._server_url}{DC_LOGS_PATH}'
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=DcLogsRequestParams(
+                env_id=env_id,
+                services=services,
+            )) as response:
+                assert response.status == 200, response
+                response_body = DcExecResponseParams(**await response.json())
+                return debase64_pickled(response_body['logs'])
 
     def list_current_in_flight_envs(self, *args, **kwargs):
         raise NotImplementedError()

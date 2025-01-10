@@ -1,5 +1,3 @@
-from enum import Enum
-from enum import auto
 from functools import partial
 from typing import Awaitable
 from typing import Callable
@@ -13,6 +11,7 @@ from maxwelld.core.compose_data_types import ComposeState
 from maxwelld.core.compose_data_types import ServiceComposeState
 from maxwelld.core.compose_data_types import ServicesComposeState
 from maxwelld.helpers.countdown_counter import CountdownCounterKeeper
+from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.helpers.state_keeper import ServicesState
 from maxwelld.helpers.state_keeper import StateKeeper
 from maxwelld.output.console import CONSOLE
@@ -24,11 +23,6 @@ from maxwelld.vedro_plugin.logger import WaitVerbosity
 def is_service_not_running_or_not_healthy(service_state: ServiceComposeState) -> bool:
     return (service_state.state != ComposeState.RUNNING
             or service_state.health not in (ComposeHealth.EMPTY, ComposeHealth.HEALTHY))
-
-
-class JobResult(Enum):
-    GOOD = auto()
-    BAD = auto()
 
 
 async def check_all_services_up(

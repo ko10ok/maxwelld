@@ -38,25 +38,23 @@ class EventStage(Enum):
     BEFORE_ALL = StageName('before_all')
     BEFORE_SERVICE_START = StageName('before_start')
     AFTER_SERVICE_START = StageName('after_start')
+    AFTER_SERVICE_HEALTHY = StageName('after_healthy')
     AFTER_ALL = StageName('after_all')
 
     @classmethod
     def get_all_stages(cls):
         return [
             cls.BEFORE_ALL,
+            cls.BEFORE_SERVICE_START,
             cls.AFTER_SERVICE_START,
+            cls.AFTER_SERVICE_HEALTHY,
             cls.AFTER_ALL,
-            cls.BEFORE_SERVICE_START
+
         ]
 
     @classmethod
     def get_all_compose_stages(cls):
-        return [
-            cls.BEFORE_ALL.value.compose_name,
-            cls.AFTER_SERVICE_START.value.compose_name,
-            cls.AFTER_ALL.value.compose_name,
-            cls.BEFORE_SERVICE_START.value.compose_name
-        ]
+        return [stage.value.compose_name for stage in cls.get_all_stages()]
 
     @classmethod
     def get_compose_stage(cls, stage_name: str) -> 'EventStage':
@@ -64,6 +62,7 @@ class EventStage(Enum):
             if stage.value.compose_name == stage_name:
                 return stage
         assert False, 'No such stage: {}'.format(stage_name)
+
 
 class Handler(NamedTuple):
     stage: EventStage
@@ -103,6 +102,7 @@ class Service(NamedTuple):
             'name': self.name,
             'env': dict(self.env),
         }
+
 
 def remove_dups(*services: Service) -> List[Service]:
     result_services = []
@@ -155,7 +155,6 @@ class Environment:  # TODO rename Environment
         return [
             service.as_dict() for service in self._services
         ]
-
 
 class SingletonService(Service):
     singleton: bool = False

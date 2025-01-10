@@ -1,0 +1,61 @@
+services:
+  maxwelld:
+    user: root
+    image: ko10ok/maxwelld:${VERSION}
+    environment:
+      - HOST_PROJECT_ROOT_DIRECTORY=env HOST_PROJECT_ROOT_DIRECTORY value
+      - PROJECT_NAME=maxwelld-tests
+      - DEFAULT_COMPOSE_FILES=docker-compose.yaml:docker-compose.dev.yaml
+      - DOCKER_HOST=tcp://test-docker-daemon:2375
+      - COMPOSE_PROJECT_NAME=test-just-now
+      - NON_STOP_CONTAINERS=""
+      - PRE_MIGRATIONS_CHECK_SERVICE_UP_ATTEMPTS=15
+      - PRE_MIGRATIONS_CHECK_SERVICE_UP_CHECK_DELAY=1
+      - VERBOSE_DOCKER_COMPOSE_OUTPUT_TO_STDOUT=True
+    volumes:
+      - ./mnt/compose-files:/compose-files
+      - ./mnt/project:/project
+      - ./mnt/tmp-envs:/tmp-envs
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    healthcheck:
+      test: "curl -s --fail http://localhost/v0/healthcheck || exit 1"
+      interval: 5s
+      timeout: 10s
+      retries: 100
+    depends_on:
+      test-docker-daemon:
+        condition: service_healthy
+
+  test-docker-daemon:
+    image: docker:dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    ports:
+      - 2375
+    healthcheck:
+      test: "wget -q -O - http://localhost:2375/v1.40/version || exit 1"
+      interval: 5s
+      timeout: 10s
+      retries: 100
+
+  e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - MAXWELLD_HOST=maxwelld
+    command: 'sh -c "trap : TERM INT; sleep 604800; wait"'
+#    image: python:3.10-alpine3.19
+    volumes:
+      - ./mnt/compose-files:/compose-files
+      - ./mnt/project:/project
+      - .:/tests
+      - ..:/maxwelld
+    depends_on:
+      maxwelld:
+        condition: service_healthy
+      test-docker-daemon:
+        condition: service_healthy

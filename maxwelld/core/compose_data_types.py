@@ -88,9 +88,9 @@ class ServicesComposeState:
         return iter(self._services)
 
     def as_rich_text(
-            self,
-            filter: Callable[[ServiceComposeState], bool] = lambda x: True,
-            style: Style = Style()
+        self,
+        filter: Callable[[ServiceComposeState], bool] = lambda x: True,
+        style: Style = Style()
     ) -> Text:
         services_text = Text()
         for service_state in self._services:
@@ -113,5 +113,5 @@ class ServicesComposeState:
     def __repr__(self):
         return f'{type(self).__name__}(<{self._services}>)'
 
-    def as_json(self) -> list[dict]:
-        return [service_status.as_json() for service_status in self._services]
+    def as_json(self, filter: Callable[[ServiceComposeState], bool] = lambda x: True, ) -> list[dict]:
+        return [service_status.as_json() for service_status in self._services if filter(service_status)]

@@ -1,13 +1,13 @@
 import sys
 from enum import Enum
 from enum import auto
+from functools import partial
 from functools import reduce
 from sys import exit
 from typing import Type
 from typing import Union
 
 import vedro.events
-from functools import partial
 from rich.text import Text
 from vedro.core import ConfigType
 from vedro.core import Dispatcher
@@ -20,17 +20,17 @@ from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
 from maxwelld.client.maxwell_client import MaxwellDemonClient
-from maxwelld.vedro_plugin.state_waiting import JobResult
-from maxwelld.vedro_plugin.logger import WaitVerbosity
-from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 from maxwelld.core.sequence_run_types import ComposeConfig
-from maxwelld.core.compose_run_sequences import setup_env_for_tests
 from maxwelld.env_description.env_types import Environments
+from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+from maxwelld.vedro_plugin.env_setter import setup_env_for_tests
+from maxwelld.vedro_plugin.logger import WaitVerbosity
 from maxwelld.vedro_plugin.scenario_ordering import EnvTagsOrderer
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenario_config
 from maxwelld.vedro_plugin.scenario_tag_processing import extract_scenarios_configs_set
+from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 
 DEFAULT_COMPOSE = 'default'
 
@@ -136,6 +136,8 @@ class VedroMaxwellPlugin(Plugin):
 
     async def handle_scenarios(self, event: StartupEvent) -> None:
         needed_configs = extract_scenarios_configs_set(event.scheduler.scheduled)
+        if not needed_configs:
+            return
 
         CONSOLE.print(
             Text(f'Tests requests configs: ') + reduce(
