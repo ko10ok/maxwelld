@@ -1,6 +1,7 @@
 import asyncio
 import os
 import pprint
+import shlex
 import sys
 from asyncio import subprocess
 from pathlib import Path
@@ -188,6 +189,47 @@ class ComposeShellInterface:
             ), stdout, stderr
 
         return JobResult.GOOD, stdout, stderr
+
+    async def dc_exec_process_pids(self, container: str,
+                                   cmd: str,
+                                   env: dict = None,
+                                   root: Path | str = None,
+                                   ) -> tuple[JobResult, bytes, bytes] | list[int] | tuple[OperationError, bytes, bytes]:
+        if env is None:
+            env = {}
+        env = self.execution_envs | env
+
+        if root is None:
+            root = self.in_docker_project_root
+
+        process_state = await asyncio.create_subprocess_shell(
+            cmd := f'/usr/local/bin/docker-compose --project-directory {root} exec {self.extra_exec_params} {container} pgrep -fnx {shlex.quote(cmd)}',
+            env=env,
+            cwd=root,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process_state.communicate()
+        pids_string = stdout.decode('utf-8')
+        pids = []
+        if pids_string != '':
+            CONSOLE.print(f'Process still running: {cmd} in {container} on pids: {pids_string}')
+            pids = [int(pid) for pid in pids_string.split(' ')]
+        else:
+            CONSOLE.print(f'Process done: {cmd} in {container}')
+        return pids
+
+    async def dc_exec_till_complete(self, container: str,
+                                    cmd: str,
+                                    env: dict = None,
+                                    root: Path | str = None
+                                    ) -> tuple[JobResult, bytes, bytes] | tuple[OperationError, bytes, bytes]:
+        result = await self.dc_exec(container, cmd, env, root)
+        await retry(attempts=30, delay=1, until=lambda x: x != [])(
+            self.dc_exec_process_pids
+        )(container, cmd)
+
+        return result
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)
     async def dc_down(self, services: list[str], env: dict = None,

@@ -1,3 +1,4 @@
+import shlex
 import warnings
 from uuid import uuid4
 
@@ -183,7 +184,7 @@ class MaxwellDemonService:
         assert isinstance(services_status, ServicesComposeState), "Can't execute docker-compose ps"
         return services_status
 
-    async def exec(self, env_id: str, container: str, command: str):
+    async def exec(self, env_id: str, container: str, command: str, till_complete: bool = False):
         log_file = f'{str(uuid4())}.log'
         env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
         compose_interface = self._compose_interface(
@@ -191,7 +192,11 @@ class MaxwellDemonService:
             in_docker_project_root=self.in_docker_project_root_path
         )
 
-        await compose_interface.dc_exec(container, f'sh -c \'{command} > /tmp/{log_file}\'')
+        cmd = f'sh -c \'{shlex.quote(command)[1:-1]} > /tmp/{log_file}\''
+        if till_complete:
+            await compose_interface.dc_exec_till_complete(container, cmd)
+        else:
+            await compose_interface.dc_exec(container, cmd)
 
         job_result, stdout, stderr = await compose_interface.dc_exec(container, f'cat /tmp/{log_file}')
         if job_result != JobResult.GOOD:

@@ -102,7 +102,7 @@ class ComposeInstance:
                 target_service = env_config_instance.env_services_map[handler.executor or service]
 
                 substituted_cmd = handler.cmd.format(**env_config_instance.env_services_map)
-                migrate_result, stdout, stderr = await self.compose_executor.dc_exec(
+                migrate_result, stdout, stderr = await self.compose_executor.dc_exec_till_complete(
                     target_service, substituted_cmd
                 )
                 if migrate_result != JobResult.GOOD:
