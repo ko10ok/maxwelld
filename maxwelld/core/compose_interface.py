@@ -203,21 +203,27 @@ class ComposeShellInterface:
             root = self.in_docker_project_root
 
         process_state = await asyncio.create_subprocess_shell(
-            cmd := f'/usr/local/bin/docker-compose --project-directory {root} exec {self.extra_exec_params} {container} pgrep -fnx {shlex.quote(cmd)}',
+            check_cmd := f'/usr/local/bin/docker-compose --project-directory {root} exec {self.extra_exec_params} {container} pgrep -fnx {shlex.quote(cmd)}',
             env=env,
             cwd=root,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await process_state.communicate()
-        pids_string = stdout.decode('utf-8')
-        pids = []
-        if pids_string != '':
-            CONSOLE.print(f'Process still running: {cmd} in {container} on pids: {pids_string}')
-            pids = [int(pid) for pid in pids_string.split(' ')]
+        check_output = stdout.decode('utf-8')
+
+        if check_output != '':
+            try:
+                pids = [int(pid) for pid in check_output.split(' ')]
+                CONSOLE.print(f'Process still running: {cmd} in {container} with output:\n  {pids}')
+                return pids
+            except ValueError:
+                ...
+            CONSOLE.print(f'Somthing wrong:\n  {check_output}')
+            return [-1]
         else:
             CONSOLE.print(f'Process done: {cmd} in {container}')
-        return pids
+            return []
 
     async def dc_exec_till_complete(self, container: str,
                                     cmd: str,
@@ -225,9 +231,15 @@ class ComposeShellInterface:
                                     root: Path | str = None
                                     ) -> tuple[JobResult, bytes, bytes] | tuple[OperationError, bytes, bytes]:
         result = await self.dc_exec(container, cmd, env, root)
-        await retry(attempts=30, delay=1, until=lambda x: x != [])(
+
+        processes = await retry(attempts=30, delay=1, until=lambda pids: pids != [] and pids != [-1])(
             self.dc_exec_process_pids
         )(container, cmd)
+        if processes:
+            if processes == [-1]:
+                CONSOLE.print('  Process was not checked for completion')
+            else:
+                CONSOLE.print('  !!! WARN !!! - Process was not completed')
 
         return result
 

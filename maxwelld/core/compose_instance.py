@@ -109,7 +109,8 @@ class ComposeInstance:
                     services_status = await self.compose_executor.dc_state()
                     raise ServicesUpError(f"Can't migrate service {target_service}, with {substituted_cmd}"
                                           f"\n{stdout=}\n{stderr=}"
-                                          f"\nUp logs:\n {await self.logs(self.except_containers)}"
+                                          # TODO fix too verbose to file output?
+                                          # f"\nUp logs:\n {await self.logs(self.except_containers)}"
                                           f"\nServices logs:\n {await self.logs(services)}"
                                           f"\nServices status:\n {services_status.as_rich_text()}") from None
 
@@ -158,7 +159,8 @@ class ComposeInstance:
             services_status = await self.compose_executor.dc_state()
             raise ServicesUpError(f"Can't up services {services} for "
                                   f"{Config().service_up_check_attempts*Config().service_up_check_delay}s"
-                                  f"\nUp logs:\n {await self.logs(self.except_containers)}"
+                                  # TODO fix too verbose to file output?
+                                  # f"\nUp logs:\n {await self.logs(self.except_containers)}"
                                   f"\nServices logs:\n {await self.logs(services)}"
                                   f"\nServices status:\n {services_status.as_rich_text()}") from None
 
