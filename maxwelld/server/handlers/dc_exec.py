@@ -12,6 +12,7 @@ class DcExecRequestParams(TypedDict):
     env_id: EnvironmentId
     container: str
     command: str
+    till_complete: bool
 
 
 class DcExecResponseParams(TypedDict):
@@ -24,6 +25,8 @@ async def dc_exec(request: Request) -> web.Response:
     output = await MaxwellDemonServiceManager().get().exec(
         env_id=params['env_id'],
         container=params['container'],
-        command=params['command']
+        command=params['command'],
+        till_complete=params.get('till_complete', False),
     )
+    
     return web.json_response(DcExecResponseParams(output=base64_pickled(output)), status=200)
