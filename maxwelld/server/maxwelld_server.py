@@ -3,6 +3,7 @@ import os
 from aiohttp import web
 
 from maxwelld.server.commands import DC_EXEC_PATH
+from maxwelld.server.commands import DC_GET_EXEC_LOGS_PATH
 from maxwelld.server.commands import DC_LOGS_PATH
 from maxwelld.server.commands import DC_UP_PATH
 from maxwelld.server.commands import ENV_PATH
@@ -10,6 +11,7 @@ from maxwelld.server.commands import HEALTHCHECK_PATH
 from maxwelld.server.commands import STATUS_PATH
 from maxwelld.server.commands import UP_PATH
 from maxwelld.server.handlers.dc_exec import dc_exec
+from maxwelld.server.handlers.dc_exec_logs import dc_exec_logs
 from maxwelld.server.handlers.dc_logs import dc_logs
 from maxwelld.server.handlers.dc_up import dc_up
 from maxwelld.server.handlers.env import http_get_env
@@ -23,6 +25,7 @@ app = web.Application()
 app.add_routes([
     web.post(DC_UP_PATH, dc_up),
     web.post(DC_EXEC_PATH, dc_exec),
+    web.post(DC_GET_EXEC_LOGS_PATH, dc_exec_logs),
     web.post(DC_LOGS_PATH, dc_logs),
 
     # ============================

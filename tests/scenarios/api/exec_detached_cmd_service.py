@@ -47,7 +47,7 @@ services:
             env_id=self.started_services['env_id'],
             container='s1',
             command='echo "Hello, World!"',
-            till_complete=True,
+            detached=True,
         )
 
     async def when_user_exec_service_cmd(self):
@@ -56,6 +56,6 @@ services:
     async def then_it_should_return_successful_code(self):
         assert self.response.status_code == HTTPStatusCodeOk
 
-    async def then_it_should_up_entire_env(self):
-        assert self.response.json() == schema.dict({'output': schema.str})
-        assert debase64_pickled(self.response.json()['output']) == schema.bytes(b'Hello, World!\n')
+    async def then_it_should_exec_command_without_output(self):
+        assert self.response.json() == schema.dict({'uid': schema.str, 'output': schema.str})
+        assert debase64_pickled(self.response.json()['output']) == schema.bytes(b'')

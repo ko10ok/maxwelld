@@ -14,6 +14,7 @@ from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.utils.compose_instance_cfg import get_new_env_id
 from maxwelld.core.utils.env_files import make_debug_bash_env
 from maxwelld.env_description.env_types import Environment
+from maxwelld.helpers.exec_record import ExecRecord
 from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
@@ -47,6 +48,7 @@ class MaxwellDemonService:
         self.host_project_root_directory = cfg.host_project_root_directory
         self.env_tmp_directory = cfg.env_tmp_directory
         self.host_env_tmp_directory = cfg.host_env_tmp_directory
+        self.execs: dict[str, ExecRecord] = {}
 
         self._compose_interface = ComposeShellInterface
         if compose_interface is not None:
@@ -184,21 +186,41 @@ class MaxwellDemonService:
         assert isinstance(services_status, ServicesComposeState), "Can't execute docker-compose ps"
         return services_status
 
-    async def exec(self, env_id: str, container: str, command: str, till_complete: bool = False):
-        log_file = f'{str(uuid4())}.log'
+    async def exec(self, env_id: str, container: str, command: str, detached: bool = False):
+        uid = str(uuid4())
+        log_file = f'{uid}.log'
+        self.execs = {uid: ExecRecord(env_id, container, log_file)}
         env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
         compose_interface = self._compose_interface(
             compose_files=env_compose_files,
             in_docker_project_root=self.in_docker_project_root_path
         )
 
-        cmd = f'sh -c \'{shlex.quote(command)[1:-1]} > /tmp/{log_file}\''
-        if till_complete:
-            await compose_interface.dc_exec_till_complete(container, cmd)
-        else:
-            await compose_interface.dc_exec(container, cmd)
+        detached_str = ' &' if detached else ''
+        cmd = f'sh -c \'{shlex.quote(command)[1:-1]} > /tmp/{log_file} 2>&1 {detached_str}\''
+        await compose_interface.dc_exec(container, cmd)
 
         job_result, stdout, stderr = await compose_interface.dc_exec(container, f'cat /tmp/{log_file}')
+        if job_result != JobResult.GOOD:
+            ...
+
+        return uid, stdout
+
+    async def get_exec_logs(self, uid: str):
+        if uid not in self.execs:
+            return b''
+
+        exec_record = self.execs[uid]
+        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(exec_record.env_id)
+        compose_interface = self._compose_interface(
+            compose_files=env_compose_files,
+            in_docker_project_root=self.in_docker_project_root_path
+        )
+
+        job_result, stdout, stderr = await compose_interface.dc_exec(
+            exec_record.container,
+            f'cat /tmp/{exec_record.log_file}'
+        )
         if job_result != JobResult.GOOD:
             ...
 
