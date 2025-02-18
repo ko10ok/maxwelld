@@ -51,7 +51,7 @@ class MaxwellDemonClient:
                 isolation=isolation,
                 parallelism_limit=parallelism_limit,
                 force_restart=force_restart,
-            )) as response:
+            ), timeout=1200) as response:
                 if response.status == 422:
                     raise ServicesUpError((await response.json())['error'])
                 if response.status == 500:

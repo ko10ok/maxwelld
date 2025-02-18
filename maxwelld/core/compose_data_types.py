@@ -10,6 +10,7 @@ from maxwelld.output.styles import Style
 
 class ComposeState:
     RUNNING = 'running'
+    EXITED = 'exited'
 
 
 class ComposeHealth:
@@ -21,6 +22,7 @@ class ComposeHealth:
 class ServiceComposeState:
     name: str
     state: str
+    exit_code: int
     health: str
     status: str  # "Up X seconds"
 
@@ -30,6 +32,7 @@ class ServiceComposeState:
         return cls(
             name=status['Service'],
             state=status['State'],
+            exit_code=status['ExitCode'],
             health=status['Health'],
             status=status['Status'],
         )
@@ -38,21 +41,31 @@ class ServiceComposeState:
         return (isinstance(other, ServiceComposeState)
                 and self.name == other.name
                 and self.state == other.state
-                and self.health == other.health)
+                and self.health == other.health
+                and self.exit_code == self.exit_code)
 
     def __repr__(self):
         return (f'{type(self).__name__}'
                 f'(name="{self.name}", '
                 f'state="{self.state}", '
+                f'exit_code="{self.exit_code}", '
                 f'health="{self.health}", '
                 f'status="{self.status}")')
 
     def as_rich_text(self, style: Style = Style()):
         service_string = Text('     ')
-        service_string.append(Text(f"{self.name:{20}}", style=style.regular))
+        service_string.append(Text(f"{self.name:{30}}", style=style.regular))
+
+        match (self.state, self.exit_code):
+            case (ComposeState.RUNNING, _):
+                style_result = style.good
+            case (ComposeState.EXITED, 0):
+                style_result = style.suspicious
+            case _:
+                style_result = style.bad
         service_string.append(Text(
             f"{self.state:{20}}",
-            style=style.good if self.state == ComposeState.RUNNING else style.bad
+            style=style_result
         ))
         service_string.append(Text(
             f"{self.health:{20}}",
@@ -68,6 +81,7 @@ class ServiceComposeState:
         return {
             'name': self.name,
             'state': self.state,
+            'exit_code': self.exit_code,
             'health': self.health,
             'status': self.status,
         }
