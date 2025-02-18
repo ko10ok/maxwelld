@@ -6,3 +6,4 @@ class Style:
     mark = 'green bold'
     mark_neutral = 'cyan'
     context = 'magenta'
+    suspicious = 'yellow'
