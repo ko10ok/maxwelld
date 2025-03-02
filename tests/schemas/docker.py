@@ -1,15 +1,19 @@
-from d42 import optional
 from d42 import schema
 
+from schemas.labels import LabelsSchema
+
+MountsSchema = schema.dict({
+    'Type': schema.str('bind'),
+    'Source': schema.str,
+    'Destination': schema.str,
+    'Mode': schema.str,
+    'RW': schema.bool,
+    'Propagation': schema.str,
+})
+
 ContainerSchema = schema.dict({
-    'Labels': schema.dict({
-        optional('com.docker.maxwelld.release_id'): schema.str,
-        'com.docker.compose.service': schema.str,
-        'com.docker.compose.project.config_files': schema.str,
-        'com.docker.compose.project': schema.str,
-        'com.docker.compose.project.working_dir': schema.str,
-        ...: ...,
-    }),
+    'Labels': LabelsSchema,
     'State': schema.str('running') | schema.str,
+    'Mounts': schema.list(MountsSchema),
     ...: ...,
 })

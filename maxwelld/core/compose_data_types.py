@@ -25,6 +25,7 @@ class ServiceComposeState:
     exit_code: int
     health: str
     status: str  # "Up X seconds"
+    labels: dict[str, str]
 
     @classmethod
     def from_json(cls, json_status: str) -> 'ServiceComposeState':
@@ -35,6 +36,11 @@ class ServiceComposeState:
             exit_code=status['ExitCode'],
             health=status['Health'],
             status=status['Status'],
+            labels={
+                (label_split := label.split('=', maxsplit=2))[0]: label_split[1] if len(label_split) == 2 else None
+                for label in status['Labels'].split(',')
+                if 'Labels' in status
+            },
         )
 
     def __eq__(self, other):
@@ -50,7 +56,8 @@ class ServiceComposeState:
                 f'state="{self.state}", '
                 f'exit_code="{self.exit_code}", '
                 f'health="{self.health}", '
-                f'status="{self.status}")')
+                f'status="{self.status}"\n'
+                f'labels={self.labels}')
 
     def as_rich_text(self, style: Style = Style()):
         service_string = Text('     ')
@@ -84,6 +91,7 @@ class ServiceComposeState:
             'exit_code': self.exit_code,
             'health': self.health,
             'status': self.status,
+            'labels': self.labels,
         }
 
 

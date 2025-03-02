@@ -1,23 +1,31 @@
+import os
 import shlex
+import sys
 import warnings
+from pathlib import Path
 from uuid import uuid4
 
 from rich.text import Text
 
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.compose_data_types import ServicesComposeState
-from maxwelld.core.compose_instance import ComposeInstanceManager
+from maxwelld.core.compose_instance import ComposeInstanceProvider
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
 from maxwelld.core.inflight_keeper import InflightKeeper
 from maxwelld.core.sequence_run_types import EMPTY_ID
+from maxwelld.core.utils.compose_files import read_dc_file
+from maxwelld.core.utils.compose_files import scan_for_compose_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_env_id
 from maxwelld.core.utils.env_files import make_debug_bash_env
 from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.exec_record import ExecRecord
 from maxwelld.helpers.jobs_result import JobResult
+from maxwelld.helpers.labels import Label
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+
+
 
 
 class MaxwellDemonService:
@@ -25,7 +33,7 @@ class MaxwellDemonService:
                  config=Config,
                  compose_interface: type[ComposeShellInterface] = None,
                  inflight_keeper: type[InflightKeeper] = None,
-                 compose_instance_maker: type[ComposeInstanceManager] = None):
+                 compose_instance_maker: type[ComposeInstanceProvider] = None):
         # assert shutil.which("docker"), 'Docker not installed'
         # assert shutil.which("docker-compose"), 'Docker-compose not installed'
 
@@ -41,7 +49,6 @@ class MaxwellDemonService:
         self._project = cfg.project
         self._non_stop_containers = cfg.non_stop_containers
         self.tmp_envs_path = cfg.tmp_envs_path
-        self.compose_files_path = cfg.compose_files_path
         self.in_docker_project_root_path = cfg.in_docker_project_root_path
         self.env_file_name = cfg.env_file_name
         self.env_file_path = cfg.env_file_path
@@ -54,31 +61,23 @@ class MaxwellDemonService:
         if compose_interface is not None:
             self._compose_interface = compose_interface
 
-        self._compose_instance_manager = ComposeInstanceManager(
+        if compose_instance_maker is None:
+            compose_instance_maker = ComposeInstanceProvider
+
+        self._compose_instance_manager = compose_instance_maker(
             project=self._project,
             compose_interface=self._compose_interface,
             except_containers=self._non_stop_containers,
-            compose_files_path=cfg.compose_files_path,
-            default_compose_files=cfg.default_compose_files,
             in_docker_project_root=self.in_docker_project_root_path,
             host_project_root_directory=self.host_project_root_directory,
             tmp_envs_path=self.tmp_envs_path,
         )
 
-        if compose_instance_maker is not None:
-            self._compose_instance_manager = compose_instance_maker(
-                project=self._project,
-                compose_interface=self._compose_interface,
-                except_containers=self._non_stop_containers,
-                compose_files_path=cfg.compose_files_path,
-                default_compose_files=cfg.default_compose_files,
-                in_docker_project_root=self.in_docker_project_root_path,
-                host_project_root_directory=self.host_project_root_directory,
-                tmp_envs_path=self.tmp_envs_path,
-            )
-
         if inflight_keeper is None:
-            self._inflight_keeper = InflightKeeper(self.tmp_envs_path, self.env_file_name)
+            self._inflight_keeper = InflightKeeper(
+                self.tmp_envs_path,
+                self.env_file_name,
+            )
 
         self._inflight_keeper.cleanup_in_flight()
 
@@ -92,26 +91,35 @@ class MaxwellDemonService:
             name, config_template, compose_files, isolation, parallelism_limit, verbose, force_restart
         )
 
-    async def get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
-        existing_inflight_env = self._inflight_keeper.get_existing_inflight_env(
-            name, config_template, compose_files
-        )
-        if existing_inflight_env:
-            CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
-                          f'> cd {self.host_project_root_directory} && '
-                          f'source ./env-tmp/{existing_inflight_env.env_id}/.env')
-            return existing_inflight_env.env_id
+    async def _get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
+        services_state = await self._compose_instance_manager.make_system().get_active_envs()
+
+        # TODO check all services from target name are up
+        for service_state in services_state:
+            state = service_state.as_json()
+            labels = state.get('labels', {})
+            env_name = labels.get(Label.REQUEST_ENV_NAME, None)
+            env_id = labels.get(Label.ENV_ID, None)
+            # TODO check config template and compose files
+            # env_compose_files = state.get(Label.COMPOSE_FILES, None)
+            # env_env_template = state.get(Label.ENV_CONFIG_TEMPLATE, None)
+            if env_name == name:
+                CONSOLE.print(f'Existing env for {name}: {env_id}. Access: '
+                              f'> cd {self.host_project_root_directory} && '
+                              f'source ./env-tmp/{env_id}/.env')
+                return env_id
         return None
 
     async def up_or_get_existing(
         self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None,
         parallelism_limit=None,
-        verbose=False, force_restart: bool = False,
+        verbose=False,
+        force_restart: bool = False,
         release_id: str = None,
     ) -> tuple[EnvironmentId, bool]:
 
-        existing_inflight_env_id = await self.get_existing(name, config_template, compose_files)
-        # TODO check all services up
+        existing_inflight_env_id = await self._get_existing(name, config_template, compose_files)
+        # TODO check all services up (makes now on client side)
         if existing_inflight_env_id and not force_restart:
             return existing_inflight_env_id, False
 
@@ -121,27 +129,36 @@ class MaxwellDemonService:
         )
 
         new_env_id = get_new_env_id()
+        if release_id is None:
+            release_id = str(uuid4())
+
         if parallelism_limit == 1:
             CONSOLE.print(f'Using default service names with {parallelism_limit=}')
             new_env_id = EMPTY_ID
 
         target_compose_instance = self._compose_instance_manager.make(
             new_env_id,
-            compose_files=compose_files,
+            name=name,
+            compose_files=compose_files or ':'.join(scan_for_compose_files(self.in_docker_project_root_path)),
             config_template=config_template,
             release_id=release_id,
         )
+
+        system_instance_manager = self._compose_instance_manager.make_system()
         if parallelism_limit == 1:
             # check if limit 1 - existing already not fit - down all current inflight
-            to_down = self._compose_instance_manager.get_envs()
-            for instance in to_down:
-                await self._compose_instance_manager.down_env(instance)
-                self._inflight_keeper.cleanup_in_flight()
-                # TODO check if > 1
-                #          check current {name} is runnig?
-                #              runnig -> current {name} to down list
-                #              check curren - 1 > limit
-                #                   grab to down some of limit - (current - 1)
+            instances_to_down = await system_instance_manager.get_active_envs()
+            env_ids = [
+                instance_to_down.as_json()['labels'][Label.SERVICE_TEMPLATE_NAME]
+                for instance_to_down in instances_to_down
+            ]
+            await self._compose_instance_manager.make_system().down(env_ids)
+            self._inflight_keeper.cleanup_in_flight()
+            # TODO check if > 1
+            #          check current {name} is runnig?
+            #              runnig -> current {name} to down list
+            #              check curren - 1 > limit
+            #                   grab to down some of limit - (current - 1)
 
         await target_compose_instance.cleanup()
         await target_compose_instance.run()

@@ -42,8 +42,7 @@ async def check_all_services_up(
         state_keeper.update_state(ServicesState.DEFAULT_STATE)
 
     services_state = await get_services_state()
-    from pprint import pprint
-    pprint(services_state.as_json())
+
     is_all_up = (all([
         service.state == ComposeState.RUNNING or (service.state == ComposeState.EXITED and service.exit_code == 0)
         for service in services_state if service.name in services

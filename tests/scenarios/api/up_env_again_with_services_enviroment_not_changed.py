@@ -14,6 +14,7 @@ from interfaces.maxwelld_api import MaxwelldApi
 from maxwelld import Environment
 from maxwelld import Service
 from maxwelld.helpers.bytes_pickle import base64_pickled
+from maxwelld.helpers.labels import Label
 from maxwelld.server.handlers.dc_up import DcUpRequestParams
 from schemas.docker import ContainerSchema
 from schemas.env_name import EnvNameSchema
@@ -94,7 +95,7 @@ services:
             ...,
             ContainerSchema % {
                 'Labels': {
-                    'com.docker.maxwelld.release_id': self.start_release,
+                    Label.RELEASE_ID: self.start_release,
                     'com.docker.compose.service': 's1',
                     'com.docker.compose.project.config_files':
                         '/tmp-envs/no_id/docker-compose.yaml',
@@ -106,7 +107,7 @@ services:
             ...,
             ContainerSchema % {
                 'Labels': {
-                    'com.docker.maxwelld.release_id': self.start_release,
+                    Label.RELEASE_ID: self.start_release,
                     'com.docker.compose.service': 's2',
                     'com.docker.compose.project.config_files':
                         '/tmp-envs/no_id/docker-compose.yaml',

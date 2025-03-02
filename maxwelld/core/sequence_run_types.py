@@ -14,6 +14,7 @@ class ComposeConfig(NamedTuple):
 
 class EnvInstanceConfig(NamedTuple):
     env_source: Environment
+    env_name: str
     env_id: str
     env_services_map: dict[str, str]
     env: Environment
