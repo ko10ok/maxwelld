@@ -308,10 +308,6 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
                                     tmp_env_path: Path,
                                     release_id: str = None,
                                     ) -> ComposeInstanceFiles:
-    print("compose_files: ")
-    print(compose_files)
-    sys.stdout.flush()
-
     dst = tmp_env_path / env_config_instance.env_id
 
     dst.mkdir(parents=True, exist_ok=True)
@@ -320,7 +316,6 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             file.unlink()
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
-    print(f'{new_compose_files_list=}')
     labels = {
         Label.ENV_ID: env_config_instance.env_id,
         Label.CLIENT_ENV_NAME: str(env_config_instance.env),
@@ -337,8 +332,6 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
 
         src_file = compose_files_path / file
         dst_file = dst / file.replace('/', '-')
-        print(f'{src_file=}')
-        print(f'{dst_file=}')
         shutil.copy(src_file, dst_file)
 
         # TODO fill dc files with env from .envs files as default
@@ -351,7 +344,6 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             labels=labels,
             relative_path=relative_path,
         )
-    sys.stdout.flush()
     inline_migrations = extract_services_inline_migration(new_compose_files_list.split(':'))
 
     return ComposeInstanceFiles(
