@@ -19,8 +19,7 @@ class Config:
         ))
         self.docker_host = os.environ.get('DOCKER_HOST')
         self.compose_project_name = os.environ.get('COMPOSE_PROJECT_NAME')
-        self.default_compose_files: str = os.environ.get('DEFAULT_COMPOSE_FILES')
-        assert self.default_compose_files != '', 'unset DEFAULT_COMPOSE_FILES'
+        self.default_compose_files: str = os.environ.get('DEFAULT_COMPOSE_FILES', None)
         self.debug_docker_compose_commands = bool(os.environ.get('DEBUG_DOCKER_COMPOSE_OUTPUT_TO_STDOUT', False))
         self.verbose_docker_compose_commands = bool(os.environ.get('VERBOSE_DOCKER_COMPOSE_OUTPUT_TO_STDOUT', True))
         self.verbose_docker_compose_ps_commands = bool(os.environ.get('VERBOSE_DOCKER_COMPOSE_PS_OUTPUT_TO_STDOUT', False))

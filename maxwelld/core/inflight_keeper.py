@@ -9,6 +9,7 @@ from maxwelld.core.compose_instance import ComposeInstanceProvider
 from rich import json
 
 from maxwelld.client.types import EnvironmentId
+from maxwelld.core.compose_instances import ComposeInstances
 from maxwelld.core.sequence_run_types import EMPTY_ID
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config

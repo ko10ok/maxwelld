@@ -5,6 +5,7 @@ COPY --from=docker:25.0.3-dind-alpine3.19 /usr/local/bin/docker /usr/local/bin/
 LABEL description="Maxwelld (http://github.com/ko10ok/maxwelld) service. \
 Env params should be set up: \
 - COMPOSE_PROJECT_NAME - compose project name (namespace); \
+- DEFAULT_COMPOSE_FILES - compose project files used by default; \
 - HOST_PROJECT_ROOT_DIRECTORY - path for services volumes mapping; \
 - HOST_TMP_ENV_DIRECTORY - volumed path for temporarely generated envs; \
 - DOCKER_HOST - docker service host; \

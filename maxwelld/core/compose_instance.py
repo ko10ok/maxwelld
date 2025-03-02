@@ -13,6 +13,7 @@ from maxwelld.core.sequence_run_types import EnvInstanceConfig
 from maxwelld.core.utils.compose_files import get_compose_services
 from maxwelld.core.utils.compose_files import get_compose_services_dependency_tree
 from maxwelld.core.utils.compose_files import make_env_compose_instance_files
+from maxwelld.core.utils.compose_files import scan_for_compose_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config
 from maxwelld.env_description.env_types import Environment
@@ -63,7 +64,7 @@ class ComposeInstance:
 
         self.compose_instance_files: ComposeInstanceFiles = None
         for file in self.compose_files.split(':'):
-            assert (file := Path(self.compose_files_path / file)).exists(), f'File {file} doesnt exist'
+            assert (file := Path(self.in_docker_project_root / file)).exists(), f'File {file} doesnt exist'
 
     async def config(self) -> EnvInstanceConfig:
         if self._env_instance_config is None:
@@ -81,7 +82,7 @@ class ComposeInstance:
             self.compose_files,
             project_network_name=self.project,
             host_project_root_directory=self.host_project_root_directory,
-            compose_files_path=self.compose_files_path,
+            compose_files_path=self.in_docker_project_root,
             tmp_env_path=self.tmp_envs_path,
             release_id=self.release_id,
         )
@@ -224,14 +225,13 @@ class ComposeInstance:
 
 class ComposeInstanceProvider:
     def __init__(self, project: str, compose_interface: type[ComposeShellInterface], except_containers: list[str],
-                 compose_files_path: Path, default_compose_files: str, in_docker_project_root: Path,
+                 compose_files_path: Path, in_docker_project_root: Path,
                  host_project_root_directory: Path,
                  tmp_envs_path: Path):
         self.project = project
         self.compose_interface = compose_interface
         self.except_containers = except_containers
         self.compose_files_path = compose_files_path
-        self.default_compose_files = default_compose_files
         self.in_docker_project_root = in_docker_project_root
         self.host_project_root_directory = host_project_root_directory
         self.tmp_envs_path = tmp_envs_path
@@ -242,7 +242,7 @@ class ComposeInstanceProvider:
             name=name,
             compose_interface=self.compose_interface,
             new_env_id=new_env_id,
-            compose_files=compose_files if compose_files else self.default_compose_files,
+            compose_files=compose_files,
             compose_files_path=self.compose_files_path,
             config_template=config_template,
             in_docker_project_root=self.in_docker_project_root,
@@ -252,26 +252,13 @@ class ComposeInstanceProvider:
             release_id=release_id,
         )
 
-    def make_system(self, compose_files: str | None) -> ComposeInstances:
+    def make_system(self, compose_files: str | None = None) -> ComposeInstances:
+        all_compose_files = ':'.join(scan_for_compose_files(self.in_docker_project_root))
         return ComposeInstances(
             project=self.project,
             compose_interface=self.compose_interface,
-            compose_files=compose_files if compose_files else self.default_compose_files,
+            compose_files=all_compose_files,
             compose_files_path=self.compose_files_path,
-            in_docker_project_root=self.in_docker_project_root,
-            host_project_root_directory=self.host_project_root_directory,
-            except_containers=self.except_containers,
-            tmp_envs_path=self.tmp_envs_path,
-        )
-
-    def from_compose_instance_files(self, compose_files: str | None, config_template: Environment, ):
-        return ComposeInstance(
-            project=self.project,
-            compose_interface=self.compose_interface,
-            new_env_id=INFLIGHT,
-            compose_files=compose_files if compose_files else self.default_compose_files,
-            compose_files_path=self.compose_files_path,
-            config_template=config_template,
             in_docker_project_root=self.in_docker_project_root,
             host_project_root_directory=self.host_project_root_directory,
             except_containers=self.except_containers,

@@ -56,7 +56,7 @@ class ComposeInstances:
 
         self.compose_instance_files: ComposeInstanceFiles = None
         for file in self.compose_files.split(':'):
-            assert (file := Path(self.compose_files_path / file)).exists(), f'File {file} doesnt exist'
+            assert (file := Path(self.in_docker_project_root / file)).exists(), f'File {file} doesnt exist'
 
     async def config(self) -> EnvInstanceConfig:
         if self._env_instance_config is None:
@@ -72,7 +72,7 @@ class ComposeInstances:
             self.compose_files,
             project_network_name=self.project,
             host_project_root_directory=self.host_project_root_directory,
-            compose_files_path=self.compose_files_path,
+            compose_files_path=self.in_docker_project_root,
             tmp_env_path=self.tmp_envs_path,
         )
         # TODO uneven compose_executor initialization!! but compose_interface compose_files-dependent

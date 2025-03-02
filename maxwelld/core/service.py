@@ -1,7 +1,8 @@
+import os
 import shlex
 import sys
 import warnings
-from itertools import groupby
+from pathlib import Path
 from uuid import uuid4
 
 from rich.text import Text
@@ -13,6 +14,8 @@ from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
 from maxwelld.core.inflight_keeper import InflightKeeper
 from maxwelld.core.sequence_run_types import EMPTY_ID
+from maxwelld.core.utils.compose_files import read_dc_file
+from maxwelld.core.utils.compose_files import scan_for_compose_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_env_id
 from maxwelld.core.utils.env_files import make_debug_bash_env
 from maxwelld.env_description.env_types import Environment
@@ -21,6 +24,8 @@ from maxwelld.helpers.jobs_result import JobResult
 from maxwelld.helpers.labels import Label
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+
+
 
 
 class MaxwellDemonService:
@@ -57,31 +62,24 @@ class MaxwellDemonService:
         if compose_interface is not None:
             self._compose_interface = compose_interface
 
-        self._compose_instance_manager = ComposeInstanceProvider(
+        if compose_instance_maker is None:
+            compose_instance_maker = ComposeInstanceProvider
+
+        self._compose_instance_manager = compose_instance_maker(
             project=self._project,
             compose_interface=self._compose_interface,
             except_containers=self._non_stop_containers,
             compose_files_path=cfg.compose_files_path,
-            default_compose_files=cfg.default_compose_files,
             in_docker_project_root=self.in_docker_project_root_path,
             host_project_root_directory=self.host_project_root_directory,
             tmp_envs_path=self.tmp_envs_path,
         )
 
-        if compose_instance_maker is not None:
-            self._compose_instance_manager = compose_instance_maker(
-                project=self._project,
-                compose_interface=self._compose_interface,
-                except_containers=self._non_stop_containers,
-                compose_files_path=cfg.compose_files_path,
-                default_compose_files=cfg.default_compose_files,
-                in_docker_project_root=self.in_docker_project_root_path,
-                host_project_root_directory=self.host_project_root_directory,
-                tmp_envs_path=self.tmp_envs_path,
-            )
-
         if inflight_keeper is None:
-            self._inflight_keeper = InflightKeeper(self.tmp_envs_path, self.env_file_name)
+            self._inflight_keeper = InflightKeeper(
+                self.tmp_envs_path,
+                self.env_file_name,
+            )
 
         self._inflight_keeper.cleanup_in_flight()
 
@@ -95,13 +93,8 @@ class MaxwellDemonService:
             name, config_template, compose_files, isolation, parallelism_limit, verbose, force_restart
         )
 
-    async def _get_all_existing(self, compose_files: str | None):
-        system = self._compose_instance_manager.make_system(compose_files)
-        services_state = await system.get_active_envs()
-        return services_state
-
     async def _get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
-        services_state = await self._get_all_existing(compose_files)
+        services_state = await self._compose_instance_manager.make_system().get_active_envs()
 
         # TODO check all services from target name are up
         for service_state in services_state:
@@ -148,7 +141,7 @@ class MaxwellDemonService:
         target_compose_instance = self._compose_instance_manager.make(
             new_env_id,
             name=name,
-            compose_files=compose_files,
+            compose_files=compose_files or ':'.join(scan_for_compose_files(self.in_docker_project_root_path)),
             config_template=config_template,
             release_id=release_id,
         )

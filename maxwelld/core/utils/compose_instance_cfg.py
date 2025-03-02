@@ -79,7 +79,7 @@ def make_env_instance_config(env_template: Environment | None, env_id, name=None
 def get_new_instance_compose_files(compose_files: str, env_directory: Path) -> str:
     return ':'.join(
         [
-            str(env_directory / compose_file)
+            str(env_directory / compose_file.replace('/', '-'))
             for compose_file in compose_files.split(':')
         ]
     )

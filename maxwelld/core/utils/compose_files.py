@@ -1,4 +1,5 @@
 import collections
+import os
 import shutil
 import sys
 from _warnings import warn
@@ -6,7 +7,6 @@ from copy import deepcopy
 from pathlib import Path
 
 import yaml
-from maxwelld.helpers.bytes_pickle import base64_pickled
 
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
@@ -16,6 +16,7 @@ from maxwelld.env_description.env_types import EventStage
 from maxwelld.env_description.env_types import Handler
 from maxwelld.errors.migrations import ServicesMigrationsError
 from maxwelld.helpers.labels import Label
+from ..config import Config
 
 
 def read_dc_file(filename: str | Path) -> dict:
@@ -54,13 +55,13 @@ def patch_service_volumes(volumes: list, root_path: str | Path) -> list:
     return updated_volumes
 
 
-def patch_services_volumes(dc_cfg: dict, root_path: str | Path) -> dict:
+def patch_services_volumes(dc_cfg: dict, root_path: str | Path, relative_path: str | Path) -> dict:
     new_dc_cfg = deepcopy(dc_cfg)
     for service in dc_cfg['services']:
         if 'volumes' in dc_cfg['services'][service]:
             updated_volumes = patch_service_volumes(
                 dc_cfg['services'][service]['volumes'],
-                root_path
+                str(Path(root_path) / relative_path)
             )
             new_dc_cfg['services'][service]['volumes'] = updated_volumes
     return new_dc_cfg
@@ -147,7 +148,7 @@ def patch_services_names(dc_cfg: dict, services_map: dict[str, str]) -> dict:
     return new_service_dc_cfg
 
 
-def patch_labels(dc_cfg: dict, labels: dict[str,str]):
+def patch_labels(dc_cfg: dict, labels: dict[str, str]):
     def escape(labels):
         return {
             k: v.replace(',', ';') if isinstance(v, str) else v
@@ -174,6 +175,7 @@ def patch_docker_compose_file_services(filename: Path,
                                        # TODO network_name = [projectname]_default
                                        services_map: dict[str, str] | None,
                                        labels: dict[str, str] = None,
+                                       relative_path: Path = None
                                        ) -> None:
     dc_cfg = read_dc_file(filename)
 
@@ -191,7 +193,7 @@ def patch_docker_compose_file_services(filename: Path,
     if services_map:
         dc_cfg = patch_services_names(dc_cfg, services_map)  # todo use servcie_map istead postfix
 
-    dc_cfg = patch_services_volumes(dc_cfg, host_root)
+    dc_cfg = patch_services_volumes(dc_cfg, host_root, relative_path)
 
     write_dc_file(filename, dc_cfg)
 
@@ -304,6 +306,10 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
                                     tmp_env_path: Path,
                                     release_id: str = None,
                                     ) -> ComposeInstanceFiles:
+    print("compose_files: ")
+    print(compose_files)
+    sys.stdout.flush()
+
     dst = tmp_env_path / env_config_instance.env_id
 
     dst.mkdir(parents=True, exist_ok=True)
@@ -312,6 +318,7 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             file.unlink()
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
+    print(f'{new_compose_files_list=}')
     labels = {
         Label.ENV_ID: env_config_instance.env_id,
         Label.CLIENT_ENV_NAME: str(env_config_instance.env),
@@ -324,8 +331,12 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
     }
 
     for file in compose_files.split(':'):
+        relative_path = Path(file).parent
+
         src_file = compose_files_path / file
-        dst_file = dst / file
+        dst_file = dst / file.replace('/', '-')
+        print(f'{src_file=}')
+        print(f'{dst_file=}')
         shutil.copy(src_file, dst_file)
 
         # TODO fill dc files with env from .envs files as default
@@ -336,8 +347,9 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             network_name=f'{project_network_name}_default',
             services_map=env_config_instance.env_services_map,
             labels=labels,
+            relative_path=relative_path,
         )
-
+    sys.stdout.flush()
     inline_migrations = extract_services_inline_migration(new_compose_files_list.split(':'))
 
     return ComposeInstanceFiles(
@@ -439,3 +451,20 @@ def get_compose_services_dependency_tree(compose_files: str):
     service_levels = group_by_levels(topologically_sorted_services, services_dict)
 
     return service_levels
+
+
+def scan_for_compose_files(path: Path) -> list[str]:
+    compose_files = []
+    for root, dirs, files in os.walk(path):
+        if len(root.split('/')) <= 4:
+            for file in files:
+                if file.endswith('.yml') or file.endswith('.yaml'):
+                    dc_file = read_dc_file(Path(root) / file)
+                    if 'services' in dc_file:
+                        compose_files.append(str(Path(root) / file)[len(str(path)) + 1:])
+    return compose_files
+
+
+def get_default_compose_files() -> str:
+    cfg = Config()
+    return cfg.default_compose_files or ':'.join(scan_for_compose_files(cfg.in_docker_project_root_path))
