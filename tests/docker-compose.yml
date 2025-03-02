@@ -3,7 +3,7 @@ services:
     user: root
     image: ko10ok/maxwelld:${VERSION}
     environment:
-      - HOST_PROJECT_ROOT_DIRECTORY=env HOST_PROJECT_ROOT_DIRECTORY value
+      - HOST_PROJECT_ROOT_DIRECTORY=${PWD}/mnt/project
       - PROJECT_NAME=maxwelld-tests
       - DOCKER_HOST=tcp://test-docker-daemon:2375
       - COMPOSE_PROJECT_NAME=test-just-now
@@ -45,10 +45,10 @@ services:
       dockerfile: Dockerfile
     environment:
       - MAXWELLD_HOST=maxwelld
+      - PWD=${PWD}/mnt/project
     command: 'sh -c "trap : TERM INT; sleep 604800; wait"'
 #    image: python:3.10-alpine3.19
     volumes:
-      - ./mnt/compose-files:/compose-files
       - ./mnt/project:/project
       - .:/tests
       - ..:/maxwelld

@@ -144,17 +144,21 @@ class MaxwellDemonService:
             release_id=release_id,
         )
 
+        system_instance_manager = self._compose_instance_manager.make_system()
         if parallelism_limit == 1:
             # check if limit 1 - existing already not fit - down all current inflight
-            to_down = self._compose_instance_manager.get_envs()
-            for instance in to_down:
-                await self._compose_instance_manager.down_env(instance)
-                self._inflight_keeper.cleanup_in_flight()
-                # TODO check if > 1
-                #          check current {name} is runnig?
-                #              runnig -> current {name} to down list
-                #              check curren - 1 > limit
-                #                   grab to down some of limit - (current - 1)
+            instances_to_down = await system_instance_manager.get_active_envs()
+            env_ids = [
+                instance_to_down.as_json()['labels'][Label.SERVICE_TEMPLATE_NAME]
+                for instance_to_down in instances_to_down
+            ]
+            await self._compose_instance_manager.make_system().down(env_ids)
+            self._inflight_keeper.cleanup_in_flight()
+            # TODO check if > 1
+            #          check current {name} is runnig?
+            #              runnig -> current {name} to down list
+            #              check curren - 1 > limit
+            #                   grab to down some of limit - (current - 1)
 
         await target_compose_instance.cleanup()
         await target_compose_instance.run()

@@ -84,3 +84,7 @@ class ComposeInstances:
         self.compose_instance_files = await self.generate_config_files()
         state = await self.compose_executor.dc_state()
         return state
+
+    async def down(self, services: list[str]):
+        self.compose_instance_files = await self.generate_config_files()
+        await self.compose_executor.dc_down(services)

@@ -49,7 +49,9 @@ def patch_service_volumes(volumes: list, root_path: str | Path) -> list:
     updated_volumes = []
     for volume in volumes:
         new_volume = volume
-        if volume.startswith('.'):
+        if volume.startswith('..'):
+            new_volume = root_path + '/' + volume
+        elif volume.startswith('.'):
             new_volume = volume.replace('.', str(root_path), 1)
         updated_volumes += [new_volume]
     return updated_volumes
@@ -169,7 +171,7 @@ def patch_labels(dc_cfg: dict, labels: dict[str, str]):
 
 
 def patch_docker_compose_file_services(filename: Path,
-                                       host_root: Path,
+                                       host_project_root_directory: Path,
                                        services_environment_vars: Environment,
                                        network_name: str,
                                        # TODO network_name = [projectname]_default
@@ -193,7 +195,7 @@ def patch_docker_compose_file_services(filename: Path,
     if services_map:
         dc_cfg = patch_services_names(dc_cfg, services_map)  # todo use servcie_map istead postfix
 
-    dc_cfg = patch_services_volumes(dc_cfg, host_root, relative_path)
+    dc_cfg = patch_services_volumes(dc_cfg, host_project_root_directory, relative_path)
 
     write_dc_file(filename, dc_cfg)
 
@@ -342,7 +344,7 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
         # TODO fill dc files with env from .envs files as default
         patch_docker_compose_file_services(
             dst_file,
-            host_root=host_project_root_directory,
+            host_project_root_directory=host_project_root_directory,
             services_environment_vars=env_config_instance.env,
             network_name=f'{project_network_name}_default',
             services_map=env_config_instance.env_services_map,
