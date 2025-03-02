@@ -35,7 +35,6 @@ class ComposeInstance:
                  new_env_id: str,
                  compose_interface: type[ComposeShellInterface],
                  compose_files: str,
-                 compose_files_path: Path,
                  config_template: Environment | None,
                  in_docker_project_root: Path,
                  host_project_root_directory: Path,
@@ -44,7 +43,6 @@ class ComposeInstance:
                  execution_envs: dict = None,
                  release_id: str = None):
         self.compose_files = compose_files
-        self.compose_files_path = compose_files_path
         self.in_docker_project_root = in_docker_project_root
         self.host_project_root_directory = host_project_root_directory
         self.except_containers = except_containers
@@ -224,14 +222,17 @@ class ComposeInstance:
 
 
 class ComposeInstanceProvider:
-    def __init__(self, project: str, compose_interface: type[ComposeShellInterface], except_containers: list[str],
-                 compose_files_path: Path, in_docker_project_root: Path,
+    def __init__(self,
+                 project: str,
+                 compose_interface: type[ComposeShellInterface],
+                 except_containers: list[str],
+                 in_docker_project_root: Path,
                  host_project_root_directory: Path,
-                 tmp_envs_path: Path):
+                 tmp_envs_path: Path
+                 ):
         self.project = project
         self.compose_interface = compose_interface
         self.except_containers = except_containers
-        self.compose_files_path = compose_files_path
         self.in_docker_project_root = in_docker_project_root
         self.host_project_root_directory = host_project_root_directory
         self.tmp_envs_path = tmp_envs_path
@@ -243,7 +244,6 @@ class ComposeInstanceProvider:
             compose_interface=self.compose_interface,
             new_env_id=new_env_id,
             compose_files=compose_files,
-            compose_files_path=self.compose_files_path,
             config_template=config_template,
             in_docker_project_root=self.in_docker_project_root,
             host_project_root_directory=self.host_project_root_directory,
@@ -258,7 +258,6 @@ class ComposeInstanceProvider:
             project=self.project,
             compose_interface=self.compose_interface,
             compose_files=all_compose_files,
-            compose_files_path=self.compose_files_path,
             in_docker_project_root=self.in_docker_project_root,
             host_project_root_directory=self.host_project_root_directory,
             except_containers=self.except_containers,

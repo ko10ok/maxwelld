@@ -49,7 +49,6 @@ class MaxwellDemonService:
         self._project = cfg.project
         self._non_stop_containers = cfg.non_stop_containers
         self.tmp_envs_path = cfg.tmp_envs_path
-        self.compose_files_path = cfg.compose_files_path
         self.in_docker_project_root_path = cfg.in_docker_project_root_path
         self.env_file_name = cfg.env_file_name
         self.env_file_path = cfg.env_file_path
@@ -69,7 +68,6 @@ class MaxwellDemonService:
             project=self._project,
             compose_interface=self._compose_interface,
             except_containers=self._non_stop_containers,
-            compose_files_path=cfg.compose_files_path,
             in_docker_project_root=self.in_docker_project_root_path,
             host_project_root_directory=self.host_project_root_directory,
             tmp_envs_path=self.tmp_envs_path,

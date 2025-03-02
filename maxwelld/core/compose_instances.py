@@ -32,7 +32,6 @@ class ComposeInstances:
                  project: str,
                  compose_interface: type[ComposeShellInterface],
                  compose_files: str,
-                 compose_files_path: Path,
                  in_docker_project_root: Path,
                  host_project_root_directory: Path,
                  except_containers: list[str],
@@ -40,7 +39,6 @@ class ComposeInstances:
                  execution_envs: dict = None,
                  ):
         self.compose_files = compose_files
-        self.compose_files_path = compose_files_path
         self.in_docker_project_root = in_docker_project_root
         self.host_project_root_directory = host_project_root_directory
         self.except_containers = except_containers

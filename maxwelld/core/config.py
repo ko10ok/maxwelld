@@ -7,7 +7,6 @@ class Config:
         self.project: str = os.environ.get('COMPOSE_PROJECT_NAME')
         self.non_stop_containers: list[str] = os.environ.get('NON_STOP_CONTAINERS').split(',')
         self.tmp_envs_path: Path = Path(os.environ.get('TMP_ENVS_DIRECTORY'))
-        self.compose_files_path: Path = Path(os.environ.get('COMPOSE_FILES_DIRECTORY'))
         self.in_docker_project_root_path: Path = Path(os.environ.get('PROJECT_ROOT_DIRECTORY'))
         self.env_file_name: str = os.environ.get('TMP_ENVS_REGISTER_FILE')
         self.env_file_path: Path = self.tmp_envs_path / self.env_file_name
