@@ -5,6 +5,7 @@ from pathlib import Path
 from rich.text import Text
 from yaml.parser import ParserError
 
+from maxwelld.core.compose_instances import ComposeInstances
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
@@ -29,6 +30,7 @@ INFLIGHT = 'inflight'
 class ComposeInstance:
     def __init__(self,
                  project: str,
+                 name: str,  # sometimes differs from Env.name in example DEFAULT_dev for different dc set
                  new_env_id: str,
                  compose_interface: type[ComposeShellInterface],
                  compose_files: str,
@@ -52,6 +54,7 @@ class ComposeInstance:
             self.execution_envs = dict(os.environ)
 
         self.new_env_id = new_env_id
+        self.name = name
         self.config_template = config_template
         self._env_instance_config = None
         self.compose_interface = compose_interface
@@ -66,7 +69,8 @@ class ComposeInstance:
         if self._env_instance_config is None:
             self._env_instance_config = make_env_instance_config(
                 env_template=self.config_template,
-                env_id=self.new_env_id
+                env_id=self.new_env_id,
+                name=self.name,
             )
         return self._env_instance_config
 
@@ -218,7 +222,7 @@ class ComposeInstance:
         return log.decode('utf-8') if job_result == JobResult.GOOD else ''
 
 
-class ComposeInstanceManager:
+class ComposeInstanceProvider:
     def __init__(self, project: str, compose_interface: type[ComposeShellInterface], except_containers: list[str],
                  compose_files_path: Path, default_compose_files: str, in_docker_project_root: Path,
                  host_project_root_directory: Path,
@@ -232,9 +236,10 @@ class ComposeInstanceManager:
         self.host_project_root_directory = host_project_root_directory
         self.tmp_envs_path = tmp_envs_path
 
-    def make(self, new_env_id: str, compose_files: str | None, config_template: Environment, release_id: str = None):
+    def make(self, new_env_id: str, name: str, compose_files: str | None, config_template: Environment, release_id: str = None):
         return ComposeInstance(
             project=self.project,
+            name=name,
             compose_interface=self.compose_interface,
             new_env_id=new_env_id,
             compose_files=compose_files if compose_files else self.default_compose_files,
@@ -245,6 +250,18 @@ class ComposeInstanceManager:
             except_containers=self.except_containers,
             tmp_envs_path=self.tmp_envs_path,
             release_id=release_id,
+        )
+
+    def make_system(self, compose_files: str | None) -> ComposeInstances:
+        return ComposeInstances(
+            project=self.project,
+            compose_interface=self.compose_interface,
+            compose_files=compose_files if compose_files else self.default_compose_files,
+            compose_files_path=self.compose_files_path,
+            in_docker_project_root=self.in_docker_project_root,
+            host_project_root_directory=self.host_project_root_directory,
+            except_containers=self.except_containers,
+            tmp_envs_path=self.tmp_envs_path,
         )
 
     def from_compose_instance_files(self, compose_files: str | None, config_template: Environment, ):

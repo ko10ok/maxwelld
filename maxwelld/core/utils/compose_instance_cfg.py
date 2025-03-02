@@ -58,7 +58,7 @@ def get_service_map(env: Environment, new_env_id: str):
     }
 
 
-def make_env_instance_config(env_template: Environment | None, env_id) -> EnvInstanceConfig:
+def make_env_instance_config(env_template: Environment | None, env_id, name=None) -> EnvInstanceConfig:
     services_map = None
     if env_template:
         services_map = get_service_map(env_template, env_id)
@@ -69,6 +69,7 @@ def make_env_instance_config(env_template: Environment | None, env_id) -> EnvIns
 
     return EnvInstanceConfig(
         env_source=env_template,
+        env_name=name,
         env_id=env_id,
         env_services_map=services_map,
         env=env

@@ -1,9 +1,11 @@
 import os
 import shutil
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Union
 
+from maxwelld.core.compose_instance import ComposeInstanceProvider
 from rich import json
 
 from maxwelld.client.types import EnvironmentId
@@ -43,7 +45,8 @@ class InflightKeeper:
             env_id = self._started_envs[name]['env_id']
             env_config_instance = make_env_instance_config(
                 env_template=config_template,
-                env_id=env_id
+                env_id=env_id,
+                name=name
             )
 
             # TODO run dc to check if services started, kill remainig if not.

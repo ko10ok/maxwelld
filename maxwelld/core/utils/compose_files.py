@@ -1,10 +1,12 @@
 import collections
 import shutil
+import sys
 from _warnings import warn
 from copy import deepcopy
 from pathlib import Path
 
 import yaml
+from maxwelld.helpers.bytes_pickle import base64_pickled
 
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
@@ -13,6 +15,7 @@ from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
 from maxwelld.env_description.env_types import Handler
 from maxwelld.errors.migrations import ServicesMigrationsError
+from maxwelld.helpers.labels import Label
 
 
 def read_dc_file(filename: str | Path) -> dict:
@@ -71,8 +74,12 @@ def list_key_exist(key, env: list[str]) -> None | str:
         return None
 
 
-def patch_service_set(dc_cfg: dict, services_map: dict[str, str]):
+def patch_service_set(dc_cfg: dict, services_map: dict[str, str] | None):
     new_dc_cfg = deepcopy(dc_cfg)
+
+    if services_map is None:
+        return new_dc_cfg
+
     for service in dc_cfg['services']:
         if service not in services_map:
             del new_dc_cfg['services'][service]
@@ -86,6 +93,10 @@ def patch_envs(dc_cfg: dict, services_environment_vars: Environment):
     for service in dc_cfg['services']:
         if 'environment' not in dc_cfg['services'][service]:
             new_dc_cfg['services'][service]['environment'] = []
+
+        if service not in services_environment_vars:
+            continue
+
         if isinstance(new_dc_cfg['services'][service]['environment'], list) and service in services_environment_vars:
             for k, v in services_environment_vars[service].env.items():
                 if existing := list_key_exist(f'{k}={v}',
@@ -136,16 +147,23 @@ def patch_services_names(dc_cfg: dict, services_map: dict[str, str]) -> dict:
     return new_service_dc_cfg
 
 
-def patch_labels(dc_cfg: dict, release_id: str):
+def patch_labels(dc_cfg: dict, labels: dict[str,str]):
+    def escape(labels):
+        return {
+            k: v.replace(',', ';') if isinstance(v, str) else v
+            for k, v in labels.items()
+        }
+
     new_service_dc_cfg = deepcopy(dc_cfg)
     for service in dc_cfg['services']:
         srv_cfg = deepcopy(dc_cfg['services'][service])
         if 'labels' not in srv_cfg:
             new_service_dc_cfg['services'][service]['labels'] = {}
 
-        new_service_dc_cfg['services'][service]['labels'] = new_service_dc_cfg['services'][service]['labels'] | {
-            'com.docker.maxwelld.release_id': release_id,
-        }
+        new_service_dc_cfg['services'][service]['labels'] |= escape(labels | {
+            Label.SERVICE_TEMPLATE_NAME: service,
+        })
+
     return new_service_dc_cfg
 
 
@@ -155,14 +173,14 @@ def patch_docker_compose_file_services(filename: Path,
                                        network_name: str,
                                        # TODO network_name = [projectname]_default
                                        services_map: dict[str, str] | None,
-                                       release_id: str = None,
+                                       labels: dict[str, str] = None,
                                        ) -> None:
     dc_cfg = read_dc_file(filename)
 
     dc_cfg = patch_network(dc_cfg, network_name=network_name)
 
-    if release_id:
-        dc_cfg = patch_labels(dc_cfg, release_id)
+    if labels:
+        dc_cfg = patch_labels(dc_cfg, labels)
 
     if services_map:
         dc_cfg = patch_service_set(dc_cfg, services_map)  # todo use servcie_map
@@ -284,7 +302,7 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
                                     host_project_root_directory,
                                     compose_files_path: Path,
                                     tmp_env_path: Path,
-                                    release_id: str = None
+                                    release_id: str = None,
                                     ) -> ComposeInstanceFiles:
     dst = tmp_env_path / env_config_instance.env_id
 
@@ -292,6 +310,18 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
     for file in dst.iterdir():
         if file.is_file():
             file.unlink()
+
+    new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
+    labels = {
+        Label.ENV_ID: env_config_instance.env_id,
+        Label.CLIENT_ENV_NAME: str(env_config_instance.env),
+        Label.REQUEST_ENV_NAME: env_config_instance.env_name,
+        Label.RELEASE_ID: release_id,
+        Label.COMPOSE_FILES: compose_files,
+        Label.COMPOSE_FILES_INSTANCE: new_compose_files_list,
+        # Label.ENV_CONFIG_TEMPLATE: base64_pickled(env_config_instance.env_source),
+        # Label.ENV_CONFIG: base64_pickled(env_config_instance.env),
+    }
 
     for file in compose_files.split(':'):
         src_file = compose_files_path / file
@@ -305,10 +335,8 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             services_environment_vars=env_config_instance.env,
             network_name=f'{project_network_name}_default',
             services_map=env_config_instance.env_services_map,
-            release_id=release_id,
+            labels=labels,
         )
-
-    new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
 
     inline_migrations = extract_services_inline_migration(new_compose_files_list.split(':'))
 
