@@ -149,8 +149,9 @@ class MaxwellDemonService:
             # check if limit 1 - existing already not fit - down all current inflight
             instances_to_down = await system_instance_manager.get_active_envs()
             env_ids = [
-                instance_to_down.as_json()['labels'][Label.SERVICE_TEMPLATE_NAME]
+                instance_name := instance_to_down.as_json()['labels'].get(Label.SERVICE_TEMPLATE_NAME, None)
                 for instance_to_down in instances_to_down
+                if instance_name
             ]
             await self._compose_instance_manager.make_system().down(env_ids)
             self._inflight_keeper.cleanup_in_flight()
