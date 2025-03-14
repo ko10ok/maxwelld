@@ -87,4 +87,4 @@ class ComposeInstances:
 
     async def down(self, services: list[str]):
         self.compose_instance_files = await self.generate_config_files()
-        await self.compose_executor.dc_down(services)
+        await self.compose_executor.dc_down(filter(lambda x: x not in self.except_containers, services))
