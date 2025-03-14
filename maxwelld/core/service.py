@@ -5,6 +5,7 @@ import warnings
 from pathlib import Path
 from uuid import uuid4
 
+from maxwelld.helpers.bytes_pickle import debase64_pickled
 from rich.text import Text
 
 from maxwelld.client.types import EnvironmentId
@@ -92,7 +93,7 @@ class MaxwellDemonService:
         )
 
     async def _get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
-        services_state = await self._compose_instance_manager.make_system().get_active_envs()
+        services_state = await self._compose_instance_manager.make_system().get_active_services()
 
         # TODO check all services from target name are up
         for service_state in services_state:
@@ -147,7 +148,7 @@ class MaxwellDemonService:
         system_instance_manager = self._compose_instance_manager.make_system()
         if parallelism_limit == 1:
             # check if limit 1 - existing already not fit - down all current inflight
-            instances_to_down = await system_instance_manager.get_active_envs()
+            instances_to_down = await system_instance_manager.get_active_services()
             env_ids = filter(
                 lambda x: x,
                 [
@@ -193,9 +194,16 @@ class MaxwellDemonService:
 
         return new_env_id, True
 
-    def env(self, env_id: str) -> Environment:
-        env_instance_config = self._inflight_keeper.get_existing_inflight_env_by_id(env_id)
-        return env_instance_config.env
+    async def env(self, env_id: str) -> Environment | None:
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services = await system_instance_manager.get_active_services()
+        service_state = services.get_any_for(Label.ENV_ID, env_id)
+        if service_state:
+            env_config = service_state.labels.get(Label.ENV_CONFIG, None)
+            if env_config:
+                return debase64_pickled(env_config)
+
+        return None
 
     async def status(self, env_id: str) -> ServicesComposeState:
         env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)

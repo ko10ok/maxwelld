@@ -94,6 +94,9 @@ class ServiceComposeState:
             'labels': self.labels,
         }
 
+    def check(self, label: str, value):
+        return label in self.labels and self.labels[label] == value
+
 
 class ServicesComposeState:
     def __init__(self, compose_status: str):
@@ -137,3 +140,18 @@ class ServicesComposeState:
 
     def as_json(self, filter: Callable[[ServiceComposeState], bool] = lambda x: True, ) -> list[dict]:
         return [service_status.as_json() for service_status in self._services if filter(service_status)]
+
+    def get_all_for(self, label: str, value) -> list[ServiceComposeState]:
+        services_states = []
+        for service_state in self._services:
+            if service_state.check(label, value):
+                services_states += [service_state]
+
+        return services_states
+
+    def get_any_for(self, label: str, value) -> ServiceComposeState | None:
+        for service_state in self._services:
+            if service_state.check(label, value):
+                return service_state
+
+        return None

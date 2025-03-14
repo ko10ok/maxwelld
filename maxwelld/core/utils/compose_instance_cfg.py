@@ -63,7 +63,7 @@ def make_env_instance_config(env_template: Environment | None, env_id, name=None
     if env_template:
         services_map = get_service_map(env_template, env_id)
 
-    env = Environment('DEFAULT_FULL')
+    env = Environment('SYSTEM_DEFAULT_FULL')
     if env_template:
         env = prepare_services_env(env_template, services_map)
 

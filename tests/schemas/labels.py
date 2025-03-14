@@ -12,11 +12,13 @@ LabelsSchema = schema.dict({
     Label.ENV_ID: schema.str,
     Label.REQUEST_ENV_NAME: schema.str,
     Label.CLIENT_ENV_NAME: schema.str,
-    # 'com.maxwelld.env_path': schema.str,
+
+    Label.SERVICE_TEMPLATE_NAME: schema.str,
 
     Label.COMPOSE_FILES: schema.str,
     Label.COMPOSE_FILES_INSTANCE: schema.str,
-    # 'com.maxwelld.env_config_template': schema.str,
-    # 'com.maxwelld.env_service_map': schema.str,
+
+    Label.ENV_CONFIG_TEMPLATE: schema.str,
+    Label.ENV_CONFIG: schema.str,
     ...: ...,
 })

@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import yaml
+from maxwelld.helpers.bytes_pickle import base64_pickled
 
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
@@ -316,6 +317,10 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             file.unlink()
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
+    print(env_config_instance.env_source)
+    print(base64_pickled(env_config_instance.env_source))
+    print(env_config_instance.env)
+    print(base64_pickled(env_config_instance.env))
     labels = {
         Label.ENV_ID: env_config_instance.env_id,
         Label.CLIENT_ENV_NAME: str(env_config_instance.env),
@@ -323,8 +328,8 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
         Label.RELEASE_ID: release_id,
         Label.COMPOSE_FILES: compose_files,
         Label.COMPOSE_FILES_INSTANCE: new_compose_files_list,
-        # Label.ENV_CONFIG_TEMPLATE: base64_pickled(env_config_instance.env_source),
-        # Label.ENV_CONFIG: base64_pickled(env_config_instance.env),
+        Label.ENV_CONFIG_TEMPLATE: base64_pickled(env_config_instance.env_source),
+        Label.ENV_CONFIG: base64_pickled(env_config_instance.env),
     }
 
     for file in compose_files.split(':'):

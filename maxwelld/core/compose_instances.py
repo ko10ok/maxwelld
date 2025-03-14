@@ -80,11 +80,13 @@ class ComposeInstances:
         )
         return compose_instance_files
 
-    async def get_active_envs(self) -> ServicesComposeState:
+    async def get_active_services(self) -> ServicesComposeState:
         self.compose_instance_files = await self.generate_config_files()
         state = await self.compose_executor.dc_state()
         return state
 
     async def down(self, services: list[str]):
         self.compose_instance_files = await self.generate_config_files()
-        await self.compose_executor.dc_down(filter(lambda x: x not in self.except_containers, services))
+        services_to_stop = list(filter(lambda x: x not in self.except_containers, services))
+        if services_to_stop:
+            await self.compose_executor.dc_down(services_to_stop)
