@@ -317,10 +317,7 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
             file.unlink()
 
     new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
-    print(env_config_instance.env_source)
-    print(base64_pickled(env_config_instance.env_source))
-    print(env_config_instance.env)
-    print(base64_pickled(env_config_instance.env))
+
     labels = {
         Label.ENV_ID: env_config_instance.env_id,
         Label.CLIENT_ENV_NAME: str(env_config_instance.env),
