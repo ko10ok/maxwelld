@@ -80,7 +80,7 @@ class ComposeInstances:
         )
         return compose_instance_files
 
-    async def get_active_services(self) -> ServicesComposeState:
+    async def get_active_services_state(self) -> ServicesComposeState:
         self.compose_instance_files = await self.generate_config_files()
         state = await self.compose_executor.dc_state()
         return state

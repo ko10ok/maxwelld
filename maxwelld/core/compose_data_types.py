@@ -141,17 +141,23 @@ class ServicesComposeState:
     def as_json(self, filter: Callable[[ServiceComposeState], bool] = lambda x: True, ) -> list[dict]:
         return [service_status.as_json() for service_status in self._services if filter(service_status)]
 
-    def get_all_for(self, label: str, value) -> list[ServiceComposeState]:
+    @classmethod
+    def make_new_from_services(cls, services: list[ServiceComposeState]) -> 'ServicesComposeState':
+        new_state = ServicesComposeState('')
+        new_state._services = services
+        return new_state
+
+    def get_all_for(self, label: str, value) -> 'ServicesComposeState':
         services_states = []
         for service_state in self._services:
             if service_state.check(label, value):
                 services_states += [service_state]
 
-        return services_states
+        return self.make_new_from_services(services=services_states)
 
     def get_any_for(self, label: str, value) -> ServiceComposeState | None:
         for service_state in self._services:
             if service_state.check(label, value):
                 return service_state
 
-        return None
+        return 

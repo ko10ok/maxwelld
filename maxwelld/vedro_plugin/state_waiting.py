@@ -21,7 +21,6 @@ from maxwelld.vedro_plugin.logger import WaitVerbosity
 
 
 def is_service_not_running_or_not_healthy(service_state: ServiceComposeState) -> bool:
-    print(service_state.state, service_state.exit_code)
     return (service_state.state != ComposeState.RUNNING
             or service_state.health not in (ComposeHealth.EMPTY, ComposeHealth.HEALTHY)
             or (service_state.state == ComposeState.EXITED and service_state.exit_code != 0))
