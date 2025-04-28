@@ -19,6 +19,7 @@ from vedro.events import ConfigLoadedEvent
 from vedro.events import ScenarioRunEvent
 from vedro.events import StartupEvent
 
+from maxwelld import Environment
 from maxwelld.client.maxwell_client import MaxwellDemonClient
 from maxwelld.core.sequence_run_types import ComposeConfig
 from maxwelld.env_description.env_types import Environments
@@ -66,6 +67,7 @@ class VedroMaxwellPlugin(Plugin):
         self._lats_env_id_started = None
 
         self._reported_full = False
+
     def _print_running_config(self):
         CONSOLE.print(
             Text('Running ', style=Style.info)
@@ -101,18 +103,17 @@ class VedroMaxwellPlugin(Plugin):
         )
         assert up_result != JobResult.BAD, f"Can't done up environment"
 
-    async def up_env(self, env_name, stage):
+    async def up_env(self, env_config: Environment, stage: Stage):
         if (self._verbose and not self._reported_full) or stage == Stage.INIT:
             CONSOLE.print(
                 Text('Starting ', style=Style.regular)
-                .append(Text(env_name, style=Style.mark))
+                .append(Text(str(env_config), style=Style.mark))
                 .append(Text(' services for tests ...', style=Style.regular))
             )
 
-        env = getattr(self._envs, env_name)
         started_env_id = await self._maxwell_demon.up(
-            name=env_name + self._chosen_config_name_postfix,
-            config_template=env,
+            name=str(env_config) + self._chosen_config_name_postfix,
+            config_template=env_config,
             compose_files=self._compose_choice.compose_files,
             parallelism_limit=self._compose_choice.parallel_env_limit,
             force_restart=self._force_restart
@@ -147,39 +148,33 @@ class VedroMaxwellPlugin(Plugin):
             )
         )
 
-        if self._force_env_name:
+        if self._force_env_name and self._envs:
             config_env_name = self._force_env_name
             CONSOLE.print(f'Overriding tests config:{needed_configs} '
                           f'by --env={self._force_env_name}')
-            needed_configs = {config_env_name}
+            needed_configs = {self._envs[self._force_env_name]}
 
         if self._list_envs:
             sys.exit()
 
         if (
-                self._compose_choice.parallel_env_limit
-                and (len(needed_configs) > self._compose_choice.parallel_env_limit)
+            self._compose_choice.parallel_env_limit
+            and (len(needed_configs) > self._compose_choice.parallel_env_limit)
         ):
             self._global_config.Registry.ScenarioOrderer.register(EnvTagsOrderer, self)
 
         if (
-                (self._compose_choice.parallel_env_limit is None)
-                or (self._compose_choice.parallel_env_limit == len(needed_configs))
+            (self._compose_choice.parallel_env_limit is None)
+            or (self._compose_choice.parallel_env_limit == len(needed_configs))
         ):
             for cfg_name in list(needed_configs):
                 await self._maxwell_demon.healthcheck()
                 await self.up_env(cfg_name, Stage.INIT)
 
     async def handle_setup_test_config(self, event: ScenarioRunEvent):
-        config_env_name = extract_scenario_config(event.scenario_result.scenario)
+        config_env = extract_scenario_config(event.scenario_result.scenario)
 
-        if self._force_env_name:
-            if self._verbose:
-                CONSOLE.print(f'Overriding tests config: '
-                              f'{config_env_name} by --md-env={self._force_env_name}')
-            config_env_name = self._force_env_name
-
-        env_id = await self.up_env(config_env_name, Stage.PRE_TEST)
+        env_id = await self.up_env(config_env, Stage.PRE_TEST)
 
         environment = await self._maxwell_demon.env(env_id)
         setup_env_for_tests(environment)
@@ -202,16 +197,11 @@ class VedroMaxwellPlugin(Plugin):
 
         group.add_argument("--md-list-services",
                            action='store_true',
-                           help="List possible enviroments")
-
-        group.add_argument("--md-env",
-                           type=str,
-                           choices=list(self._envs.list_all()),
-                           help="Up choosen enviroment")
+                           help="List possible environments")
 
         group.add_argument("--md-v",
                            action='store_true',
-                           help="List possible enviroments")
+                           help="List possible environments")
 
         group.add_argument("--md-parallel-env-limit",
                            type=int,
@@ -231,7 +221,7 @@ class VedroMaxwellPlugin(Plugin):
                     self._chosen_config_name_postfix = f'_{choice_name}'
 
         self._list_envs = event.args.md_list_envs
-        if self._list_envs:
+        if self._list_envs and self._envs:
             self._maxwell_demon.list_current_in_flight_envs(self._envs.list_all())
             exit(0)
 

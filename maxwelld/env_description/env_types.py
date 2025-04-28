@@ -115,7 +115,7 @@ def remove_dups(*services: Service) -> List[Service]:
 
 class Environment:  # TODO rename Environment
     @classmethod
-    def from_environment(cls, env: 'Environment', name, *services: Service):
+    def from_environment(cls, env: 'Environment', name='not_set', *services: Service):
         # TODO duplicated services merging
         return Environment(name, *env._services, *services)
 
