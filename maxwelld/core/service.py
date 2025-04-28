@@ -249,7 +249,7 @@ class MaxwellDemonService:
     async def logs(self, env_id: str, services: list[str]) -> dict[str, bytes]:
         system_instance_manager = self._compose_instance_manager.make_system()
         services_state = await system_instance_manager.get_active_services_state()
-        service_status = services_state.get_any_for(Label.ENV_ID, exec_record.env_id)
+        service_status = services_state.get_any_for(Label.ENV_ID, env_id)
 
         env_compose_files = service_status.labels.get(Label.COMPOSE_FILES)
 

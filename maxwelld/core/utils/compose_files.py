@@ -18,6 +18,21 @@ from maxwelld.env_description.env_types import Handler
 from maxwelld.errors.migrations import ServicesMigrationsError
 from maxwelld.helpers.labels import Label
 from ..config import Config
+from yaml.representer import SafeRepresenter
+
+class QuotedString(str):
+    pass
+
+class StrQuotedDumper(yaml.SafeDumper):
+    def ignore_aliases(self, data):
+        return True
+
+def quoted_scalar(dumper, data):
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+# Регистрируем: все строки типа QuotedString оборачиваются в кавычки
+StrQuotedDumper.add_representer(QuotedString, quoted_scalar)
+StrQuotedDumper.add_representer(str, quoted_scalar)
 
 
 def read_dc_file(filename: str | Path) -> dict:
@@ -27,7 +42,7 @@ def read_dc_file(filename: str | Path) -> dict:
 
 def write_dc_file(filename: str | Path, cfg: dict) -> None:
     with open(filename, 'w') as f:
-        f.write(yaml.dump(cfg))
+        f.write(yaml.dump(cfg, Dumper=StrQuotedDumper))
 
 
 def patch_network(dc_cfg: dict, network_name) -> dict:
