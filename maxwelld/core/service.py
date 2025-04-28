@@ -13,9 +13,7 @@ from maxwelld.core.compose_data_types import ServicesComposeState
 from maxwelld.core.compose_instance import ComposeInstanceProvider
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
-from maxwelld.core.inflight_keeper import InflightKeeper
 from maxwelld.core.sequence_run_types import EMPTY_ID
-from maxwelld.core.utils.compose_files import read_dc_file
 from maxwelld.core.utils.compose_files import scan_for_compose_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_env_id
 from maxwelld.core.utils.env_files import make_debug_bash_env
@@ -33,7 +31,6 @@ class MaxwellDemonService:
     def __init__(self,
                  config=Config,
                  compose_interface: type[ComposeShellInterface] = None,
-                 inflight_keeper: type[InflightKeeper] = None,
                  compose_instance_maker: type[ComposeInstanceProvider] = None):
         # assert shutil.which("docker"), 'Docker not installed'
         # assert shutil.which("docker-compose"), 'Docker-compose not installed'
@@ -73,14 +70,6 @@ class MaxwellDemonService:
             host_project_root_directory=self.host_project_root_directory,
             tmp_envs_path=self.tmp_envs_path,
         )
-
-        if inflight_keeper is None:
-            self._inflight_keeper = InflightKeeper(
-                self.tmp_envs_path,
-                self.env_file_name,
-            )
-
-        self._inflight_keeper.cleanup_in_flight()
 
     def _unpack_services_env_template_params(self, env: Environment):
         return {service: env[service].env for service in env}
@@ -157,7 +146,6 @@ class MaxwellDemonService:
                 ]
             )
             await self._compose_instance_manager.make_system().down(env_ids)
-            self._inflight_keeper.cleanup_in_flight()
             # TODO check if > 1
             #          check current {name} is runnig?
             #              runnig -> current {name} to down list
@@ -183,13 +171,6 @@ class MaxwellDemonService:
             .append(Text(
                 f'cd {self.host_project_root_directory} && source ./env-tmp/{new_env_id}/.env',
                 style=Style.mark_neutral))
-        )
-
-        self._inflight_keeper.update_inflight_envs(
-            name,
-            config_template=config_template,
-            compose_files=target_compose_instance_files.compose_files,
-            env_id=new_env_id,
         )
 
         return new_env_id, True
@@ -266,7 +247,12 @@ class MaxwellDemonService:
         return stdout
 
     async def logs(self, env_id: str, services: list[str]) -> dict[str, bytes]:
-        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services_state = await system_instance_manager.get_active_services_state()
+        service_status = services_state.get_any_for(Label.ENV_ID, exec_record.env_id)
+
+        env_compose_files = service_status.labels.get(Label.COMPOSE_FILES)
+
         compose_interface = self._compose_interface(
             compose_files=env_compose_files,
             in_docker_project_root=self.in_docker_project_root_path
