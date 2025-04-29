@@ -201,7 +201,7 @@ class VedroMaxwellPlugin(Plugin):
 
         group.add_argument("--md-env",
                            type=str,
-                           choices=list(self._envs.list_all()),
+                           choices=list(self._envs.list_all()) if self._envs else [],
                            help="Up chosen environment")
 
         group.add_argument("--md-v",
