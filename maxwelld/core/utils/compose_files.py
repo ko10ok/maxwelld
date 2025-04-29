@@ -473,7 +473,7 @@ def scan_for_compose_files(path: Path) -> list[str]:
                     dc_file = read_dc_file(Path(root) / file)
                     if 'services' in dc_file:
                         compose_files.append(str(Path(root) / file)[len(str(path)) + 1:])
-    return compose_files
+    return list(sorted(compose_files))
 
 
 def get_default_compose_files() -> str:

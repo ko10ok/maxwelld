@@ -1,20 +1,13 @@
 import vedro
 from d42 import fake
 from d42 import schema
-from rtry import retry
 
-from contexts.compose_file import cleanup_compose_files
 from contexts.compose_file import compose_file
 from contexts.no_docker_compose_files import no_docker_compose_files
 from contexts.no_docker_containers import no_docker_containers
 from contexts.no_docker_containers import retrieve_all_docker_containers
-from helpers.docker_migration_result import get_file_from_container
 from interfaces.maxwelld_api import MaxwelldApi
 from libs.env_const import SYSTEM_DEFAULT_FULL
-from maxwelld import DEFAULT_ENV
-from maxwelld import Environment
-from maxwelld import Service
-from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.labels import Label
 from maxwelld.server.handlers.dc_up import DcUpRequestParams
 from schemas.docker import ContainerSchema
@@ -91,22 +84,21 @@ services:
             ContainerSchema % {
                 'Labels': {
                     'com.docker.compose.service': 'default-config-service',
-                    'com.docker.compose.project.config_files':
-                        f'/tmp-envs/no_id/{self.compose_filename_1}'
-                        f',/tmp-envs/no_id/docker-compose.default.yaml'
-                        f',/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
                     Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
 
-                    Label.COMPOSE_FILES: f'{self.compose_filename_1}'
-                                         f':docker-compose.default.yaml'
-                                         f':{self.compose_filename_2}',
-                    Label.COMPOSE_FILES_INSTANCE:
-                        f'/tmp-envs/no_id/{self.compose_filename_1}'
-                        f':/tmp-envs/no_id/docker-compose.default.yaml'
-                        f':/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
+                    Label.COMPOSE_FILES: ':'.join(sorted([
+                        f'{self.compose_filename_1}',
+                        f'docker-compose.default.yaml',
+                        f'{self.compose_filename_2}',
+                    ])),
+                    Label.COMPOSE_FILES_INSTANCE: ':'.join(sorted([
+                        f'/tmp-envs/no_id/{self.compose_filename_1}',
+                        f'/tmp-envs/no_id/docker-compose.default.yaml',
+                        f'/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
+                    ])),
                 },
             },
             ...,
@@ -119,22 +111,20 @@ services:
             ContainerSchema % {
                 'Labels': {
                     'com.docker.compose.service': 's1',
-                    'com.docker.compose.project.config_files':
-                        f'/tmp-envs/no_id/{self.compose_filename_1}'
-                        f',/tmp-envs/no_id/docker-compose.default.yaml'
-                        f',/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
                     Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
-
-                    Label.COMPOSE_FILES: f'{self.compose_filename_1}'
-                                         f':docker-compose.default.yaml'
-                                         f':{self.compose_filename_2}',
-                    Label.COMPOSE_FILES_INSTANCE:
-                        f'/tmp-envs/no_id/{self.compose_filename_1}'
-                        f':/tmp-envs/no_id/docker-compose.default.yaml'
-                        f':/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
+                    Label.COMPOSE_FILES: ':'.join(sorted([
+                        f'{self.compose_filename_1}',
+                        f'docker-compose.default.yaml',
+                        f'{self.compose_filename_2}',
+                    ])),
+                    Label.COMPOSE_FILES_INSTANCE: ':'.join(sorted([
+                        f'/tmp-envs/no_id/{self.compose_filename_1}',
+                        f'/tmp-envs/no_id/docker-compose.default.yaml',
+                        f'/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
+                    ]))
                 },
             },
             ...,
@@ -147,22 +137,21 @@ services:
             ContainerSchema % {
                 'Labels': {
                     'com.docker.compose.service': 's2',
-                    'com.docker.compose.project.config_files':
-                        f'/tmp-envs/no_id/{self.compose_filename_1}'
-                        f',/tmp-envs/no_id/docker-compose.default.yaml'
-                        f',/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
                     Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
 
-                    Label.COMPOSE_FILES: f'{self.compose_filename_1}'
-                                         f':docker-compose.default.yaml'
-                                         f':{self.compose_filename_2}',
-                    Label.COMPOSE_FILES_INSTANCE:
-                        f'/tmp-envs/no_id/{self.compose_filename_1}'
-                        f':/tmp-envs/no_id/docker-compose.default.yaml'
-                        f':/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
+                    Label.COMPOSE_FILES: ':'.join(sorted([
+                        f'{self.compose_filename_1}',
+                        f'docker-compose.default.yaml',
+                        f'{self.compose_filename_2}',
+                    ])),
+                    Label.COMPOSE_FILES_INSTANCE: ':'.join(sorted([
+                        f'/tmp-envs/no_id/{self.compose_filename_1}',
+                        f'/tmp-envs/no_id/docker-compose.default.yaml',
+                        f'/tmp-envs/no_id/{self.compose_filename_2.replace("/", "-")}',
+                    ])),
                 },
             },
             ...,
