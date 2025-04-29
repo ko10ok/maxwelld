@@ -199,6 +199,11 @@ class VedroMaxwellPlugin(Plugin):
                            action='store_true',
                            help="List possible environments")
 
+        group.add_argument("--md-env",
+                           type=str,
+                           choices=list(self._envs.list_all()),
+                           help="Up chosen environment")
+
         group.add_argument("--md-v",
                            action='store_true',
                            help="List possible environments")
