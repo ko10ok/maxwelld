@@ -1,34 +1,35 @@
 import collections
 import os
 import shutil
-import sys
 from _warnings import warn
 from copy import deepcopy
 from pathlib import Path
 
 import yaml
-from maxwelld.helpers.bytes_pickle import base64_pickled
 
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
-from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
+from maxwelld.core.utils.compose_instance_cfg import made_up_instance_compose_files
 from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
 from maxwelld.env_description.env_types import Handler
 from maxwelld.errors.migrations import ServicesMigrationsError
+from maxwelld.helpers.bytes_pickle import base64_pickled
 from maxwelld.helpers.labels import Label
-from ..config import Config
-from yaml.representer import SafeRepresenter
+
 
 class QuotedString(str):
     pass
+
 
 class StrQuotedDumper(yaml.SafeDumper):
     def ignore_aliases(self, data):
         return True
 
+
 def quoted_scalar(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
 
 # Регистрируем: все строки типа QuotedString оборачиваются в кавычки
 StrQuotedDumper.add_representer(QuotedString, quoted_scalar)
@@ -331,7 +332,7 @@ def make_env_compose_instance_files(env_config_instance: EnvInstanceConfig,
         if file.is_file():
             file.unlink()
 
-    new_compose_files_list = get_new_instance_compose_files(compose_files, dst)
+    new_compose_files_list = made_up_instance_compose_files(compose_files, dst)
 
     labels = {
         Label.ENV_ID: env_config_instance.env_id,
@@ -474,8 +475,3 @@ def scan_for_compose_files(path: Path) -> list[str]:
                     if 'services' in dc_file:
                         compose_files.append(str(Path(root) / file)[len(str(path)) + 1:])
     return list(sorted(compose_files))
-
-
-def get_default_compose_files() -> str:
-    cfg = Config()
-    return cfg.default_compose_files or ':'.join(scan_for_compose_files(cfg.in_docker_project_root_path))

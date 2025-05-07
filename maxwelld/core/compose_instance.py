@@ -14,7 +14,7 @@ from maxwelld.core.utils.compose_files import get_compose_services
 from maxwelld.core.utils.compose_files import get_compose_services_dependency_tree
 from maxwelld.core.utils.compose_files import make_env_compose_instance_files
 from maxwelld.core.utils.compose_files import scan_for_compose_files
-from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
+from maxwelld.core.utils.compose_instance_cfg import made_up_instance_compose_files
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config
 from maxwelld.env_description.env_types import Environment
 from maxwelld.env_description.env_types import EventStage
@@ -272,7 +272,7 @@ class ComposeInstanceProvider:
         dirpath, dirnames, filenames = next(os.walk(self.tmp_envs_path / env_id))
         if '.env' in filenames:
             filenames.remove('.env')
-        docker_files = get_new_instance_compose_files(':'.join(filenames), self.tmp_envs_path / env_id)
+        docker_files = made_up_instance_compose_files(':'.join(filenames), self.tmp_envs_path / env_id)
 
         try:
             services = get_compose_services(docker_files)

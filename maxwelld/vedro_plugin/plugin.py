@@ -93,6 +93,8 @@ class VedroMaxwellPlugin(Plugin):
 
     async def wait_env_ready(self, env_id, verbose: WaitVerbosity) -> None:
         environment = await self._maxwell_demon.env(env_id)
+        if not environment:
+            raise ValueError(f'No such {env_id} environment somehow to wait for up!')
 
         checker = self._wait_all_service_func.make_checker()
 

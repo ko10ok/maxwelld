@@ -11,7 +11,7 @@ from contexts.no_docker_containers import no_docker_containers
 from contexts.no_docker_containers import retrieve_all_docker_containers
 from helpers.docker_migration_result import get_file_from_container
 from interfaces.maxwelld_api import MaxwelldApi
-from libs.env_const import SYSTEM_DEFAULT_FULL
+from libs.env_const import AUTO_SCANNED_FULL
 from maxwelld import DEFAULT_ENV
 from maxwelld import Environment
 from maxwelld import Service
@@ -102,7 +102,7 @@ services:
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
-                    Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
+                    Label.CLIENT_ENV_NAME: AUTO_SCANNED_FULL,
 
                     Label.COMPOSE_FILES: f'{self.compose_filename_1}'
                                          f':{self.compose_filename_2}',
@@ -132,7 +132,7 @@ services:
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
-                    Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
+                    Label.CLIENT_ENV_NAME: AUTO_SCANNED_FULL,
 
                     Label.COMPOSE_FILES: f'{self.compose_filename_1}'
                                          f':{self.compose_filename_2}',

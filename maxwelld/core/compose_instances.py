@@ -1,28 +1,13 @@
 import os
-import sys
 from pathlib import Path
 
 from maxwelld.core.compose_data_types import ServicesComposeState
-from rich.text import Text
-from yaml.parser import ParserError
-
 from maxwelld.core.compose_interface import ComposeShellInterface
-from maxwelld.core.config import Config
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
 from maxwelld.core.sequence_run_types import EnvInstanceConfig
-from maxwelld.core.utils.compose_files import get_compose_services
-from maxwelld.core.utils.compose_files import get_compose_services_dependency_tree
 from maxwelld.core.utils.compose_files import make_env_compose_instance_files
-from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
 from maxwelld.core.utils.compose_instance_cfg import make_env_instance_config
 from maxwelld.env_description.env_types import Environment
-from maxwelld.env_description.env_types import EventStage
-from maxwelld.errors.up import ServicesUpError
-from maxwelld.helpers.jobs_result import JobResult
-from maxwelld.output.console import CONSOLE
-from maxwelld.output.styles import Style
-from maxwelld.vedro_plugin.logger import WaitVerbosity
-from maxwelld.vedro_plugin.state_waiting import wait_all_services_up
 
 INFLIGHT = 'inflight'
 
@@ -59,7 +44,7 @@ class ComposeInstances:
     async def config(self) -> EnvInstanceConfig:
         if self._env_instance_config is None:
             self._env_instance_config = make_env_instance_config(
-                env_template=None,
+                env_template=Environment('MAXWELLD_SYSTEM_DEFAULT'),
                 env_id=self.new_env_id
             )
         return self._env_instance_config

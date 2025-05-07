@@ -8,7 +8,7 @@ from contexts.no_docker_compose_files import no_docker_compose_files
 from contexts.no_docker_containers import no_docker_containers
 from contexts.no_docker_containers import retrieve_all_docker_containers
 from interfaces.maxwelld_api import MaxwelldApi
-from libs.env_const import SYSTEM_DEFAULT_FULL
+from libs.env_const import AUTO_SCANNED_FULL
 from maxwelld.helpers.labels import Label
 from maxwelld.server.handlers.dc_up import DcUpRequestParams
 from schemas.docker import ContainerSchema
@@ -92,7 +92,7 @@ services:
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
-                    Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
+                    Label.CLIENT_ENV_NAME: AUTO_SCANNED_FULL,
 
                     Label.COMPOSE_FILES: ':'.join(sorted([
                         f'{self.compose_filename_1}',
@@ -119,7 +119,7 @@ services:
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
-                    Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
+                    Label.CLIENT_ENV_NAME: AUTO_SCANNED_FULL,
 
                     Label.COMPOSE_FILES: ':'.join(sorted([
                         f'{self.compose_filename_1}',
@@ -151,7 +151,7 @@ services:
 
                     Label.ENV_ID: 'no_id',
                     Label.REQUEST_ENV_NAME: self.env_name,
-                    Label.CLIENT_ENV_NAME: SYSTEM_DEFAULT_FULL,
+                    Label.CLIENT_ENV_NAME: AUTO_SCANNED_FULL,
 
                     Label.COMPOSE_FILES: ':'.join(sorted([
                         f'{self.compose_filename_1}',

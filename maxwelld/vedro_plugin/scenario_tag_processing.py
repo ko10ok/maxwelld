@@ -8,7 +8,7 @@ from maxwelld.env_description.env_types import Environment
 
 
 def extract_scenario_config(scenario: VirtualScenario) -> Environment:
-    scenario_env = Environment(DEFAULT_ENV)
+    scenario_env = None
     if hasattr(scenario._orig_scenario, 'tags'):
         for tag in scenario._orig_scenario.tags:
             if isinstance(tag, Environment):

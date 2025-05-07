@@ -1,5 +1,5 @@
 export COMPOSE_FILE ?= docker-compose.yml:docker-compose.dev.yml
-export VERSION=$(shell cat ../maxwelld/version)
+export VERSION := $(shell git describe --tags --exact-match 2>/dev/null || echo beta)
 
 .PHONY: down
 down:
@@ -7,7 +7,11 @@ down:
 	rm dep || true
 	docker-compose down || true
 
-up:
+build:
+	docker-compose build maxwelld
+	echo "" > build
+
+up: build
 	docker-compose up -d
 	echo "" > up
 

@@ -147,10 +147,10 @@ class ServicesComposeState:
         new_state._services = services
         return new_state
 
-    def get_all_for(self, label: str, value) -> 'ServicesComposeState':
+    def get_all_for(self, filter: Callable[[ServiceComposeState], bool]) -> 'ServicesComposeState':
         services_states = []
         for service_state in self._services:
-            if service_state.check(label, value):
+            if filter(service_state):
                 services_states += [service_state]
 
         return self.make_new_from_services(services=services_states)
