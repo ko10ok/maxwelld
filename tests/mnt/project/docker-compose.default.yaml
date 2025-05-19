@@ -1,0 +1,7 @@
+
+version: "3"
+
+services:
+  default-config-service:
+    image: busybox:stable
+    command: 'sh -c "trap : TERM INT; sleep 604800; wait"'

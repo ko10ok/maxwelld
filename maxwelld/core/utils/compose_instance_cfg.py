@@ -58,27 +58,33 @@ def get_service_map(env: Environment, new_env_id: str):
     }
 
 
-def make_env_instance_config(env_template: Environment | None, env_id) -> EnvInstanceConfig:
-    services_map = None
-    if env_template:
-        services_map = get_service_map(env_template, env_id)
-
-    env = Environment('DEFAULT_FULL')
-    if env_template:
-        env = prepare_services_env(env_template, services_map)
+def make_env_instance_config(env_template: Environment, env_id, name=None) -> EnvInstanceConfig:
+    services_map = get_service_map(env_template, env_id)
+    env = prepare_services_env(env_template, services_map)
+    assert env_template, 'Env template is empty somehow!'
 
     return EnvInstanceConfig(
         env_source=env_template,
+        env_name=name,
         env_id=env_id,
         env_services_map=services_map,
         env=env
     )
 
 
-def get_new_instance_compose_files(compose_files: str, env_directory: Path) -> str:
+def get_absolute_compose_files(compose_files: str, env_directory: Path) -> str:
     return ':'.join(
         [
             str(env_directory / compose_file)
+            for compose_file in compose_files.split(':')
+        ]
+    )
+
+
+def made_up_instance_compose_files(compose_files: str, env_directory: Path) -> str:
+    return ':'.join(
+        [
+            str(env_directory / compose_file.replace('/', '-'))
             for compose_file in compose_files.split(':')
         ]
     )

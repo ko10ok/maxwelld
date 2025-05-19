@@ -1,31 +1,49 @@
+import os
 import shlex
+import sys
 import warnings
+from itertools import groupby
+from pathlib import Path
 from uuid import uuid4
 
+from maxwelld.core.utils.compose_instance_cfg import get_absolute_compose_files
+from maxwelld.core.utils.compose_instance_cfg import made_up_instance_compose_files
+
+from maxwelld.core.utils.compose_instance_cfg import get_service_map
+
+from maxwelld.helpers.bytes_pickle import base64_pickled
+
+from maxwelld.env_description.env_types import Service
+
+from maxwelld.core.utils.compose_files import parse_docker_compose
+
+from maxwelld.helpers.bytes_pickle import debase64_pickled
 from rich.text import Text
 
 from maxwelld.client.types import EnvironmentId
 from maxwelld.core.compose_data_types import ServicesComposeState
-from maxwelld.core.compose_instance import ComposeInstanceManager
+from maxwelld.core.compose_instance import ComposeInstanceProvider
 from maxwelld.core.compose_interface import ComposeShellInterface
 from maxwelld.core.config import Config
-from maxwelld.core.inflight_keeper import InflightKeeper
 from maxwelld.core.sequence_run_types import EMPTY_ID
+from maxwelld.core.utils.compose_files import scan_for_compose_files
 from maxwelld.core.utils.compose_instance_cfg import get_new_env_id
 from maxwelld.core.utils.env_files import make_debug_bash_env
 from maxwelld.env_description.env_types import Environment
 from maxwelld.helpers.exec_record import ExecRecord
 from maxwelld.helpers.jobs_result import JobResult
+from maxwelld.helpers.labels import Label
 from maxwelld.output.console import CONSOLE
 from maxwelld.output.styles import Style
+
+
 
 
 class MaxwellDemonService:
     def __init__(self,
                  config=Config,
                  compose_interface: type[ComposeShellInterface] = None,
-                 inflight_keeper: type[InflightKeeper] = None,
-                 compose_instance_maker: type[ComposeInstanceManager] = None):
+                 compose_instance_maker: type[ComposeInstanceProvider] = None):
         # assert shutil.which("docker"), 'Docker not installed'
         # assert shutil.which("docker-compose"), 'Docker-compose not installed'
 
@@ -41,7 +59,6 @@ class MaxwellDemonService:
         self._project = cfg.project
         self._non_stop_containers = cfg.non_stop_containers
         self.tmp_envs_path = cfg.tmp_envs_path
-        self.compose_files_path = cfg.compose_files_path
         self.in_docker_project_root_path = cfg.in_docker_project_root_path
         self.env_file_name = cfg.env_file_name
         self.env_file_path = cfg.env_file_path
@@ -54,33 +71,17 @@ class MaxwellDemonService:
         if compose_interface is not None:
             self._compose_interface = compose_interface
 
-        self._compose_instance_manager = ComposeInstanceManager(
+        if compose_instance_maker is None:
+            compose_instance_maker = ComposeInstanceProvider
+
+        self._compose_instance_manager = compose_instance_maker(
             project=self._project,
             compose_interface=self._compose_interface,
             except_containers=self._non_stop_containers,
-            compose_files_path=cfg.compose_files_path,
-            default_compose_files=cfg.default_compose_files,
             in_docker_project_root=self.in_docker_project_root_path,
             host_project_root_directory=self.host_project_root_directory,
             tmp_envs_path=self.tmp_envs_path,
         )
-
-        if compose_instance_maker is not None:
-            self._compose_instance_manager = compose_instance_maker(
-                project=self._project,
-                compose_interface=self._compose_interface,
-                except_containers=self._non_stop_containers,
-                compose_files_path=cfg.compose_files_path,
-                default_compose_files=cfg.default_compose_files,
-                in_docker_project_root=self.in_docker_project_root_path,
-                host_project_root_directory=self.host_project_root_directory,
-                tmp_envs_path=self.tmp_envs_path,
-            )
-
-        if inflight_keeper is None:
-            self._inflight_keeper = InflightKeeper(self.tmp_envs_path, self.env_file_name)
-
-        self._inflight_keeper.cleanup_in_flight()
 
     def _unpack_services_env_template_params(self, env: Environment):
         return {service: env[service].env for service in env}
@@ -92,27 +93,69 @@ class MaxwellDemonService:
             name, config_template, compose_files, isolation, parallelism_limit, verbose, force_restart
         )
 
-    async def get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
-        existing_inflight_env = self._inflight_keeper.get_existing_inflight_env(
-            name, config_template, compose_files
+    async def _get_existing(self, name: str, config_template: Environment | None, compose_files: str | None):
+        services_state = await self._compose_instance_manager.make_system().get_active_services_state()
+        services_states = services_state.get_all_for(
+            lambda service_state: (
+                service_state.check(Label.REQUEST_ENV_NAME, str(name))
+                and service_state.check(Label.ENV_CONFIG_TEMPLATE, base64_pickled(config_template))
+                and service_state.check(Label.COMPOSE_FILES, compose_files)
+            )
         )
-        if existing_inflight_env:
-            CONSOLE.print(f'Existing env for {name}: {existing_inflight_env.env_id}. Access: '
-                          f'> cd {self.host_project_root_directory} && '
-                          f'source ./env-tmp/{existing_inflight_env.env_id}/.env')
-            return existing_inflight_env.env_id
-        return None
+
+        if not services_states.as_json():
+            return None
+
+        resul_service = services_states.get_any_for(Label.REQUEST_ENV_NAME, name)
+        env_id = resul_service.labels.get(Label.ENV_ID, None)
+
+        # check all up or ok-exited
+        map_service = get_service_map(config_template, env_id)
+        services_names = dict(groupby(services_states.as_json(), lambda x: x['name']))
+        for service_name in set(config_template.get_services()) - set(self._non_stop_containers):
+            mapped_name = map_service.get(service_name, None)
+            if mapped_name not in services_names:
+                CONSOLE.print(f"Service {service_name} isn't ready")
+                # TODO filter ok exited containers
+                return None
+
+
+        CONSOLE.print(f'Existing env for {name}: {env_id}. Access: '
+                      f'> cd {self.host_project_root_directory} && '
+                      f'source ./env-tmp/{env_id}/.env')
+        return env_id
 
     async def up_or_get_existing(
         self, name: str, config_template: Environment | None, compose_files: str | None, isolation=None,
         parallelism_limit=None,
-        verbose=False, force_restart: bool = False,
+        verbose=False,
+        force_restart: bool = False,
         release_id: str = None,
     ) -> tuple[EnvironmentId, bool]:
 
-        existing_inflight_env_id = await self.get_existing(name, config_template, compose_files)
-        # TODO check all services up
+        if not compose_files:
+            # default docker compose files
+            compose_files = ':'.join(
+                scan_for_compose_files(self.in_docker_project_root_path)
+            )
+
+        if not config_template:
+            # default config template
+            config_template = Environment(
+                'AUTO_SCANNED_FULL',
+
+                *[Service(name) for name in parse_docker_compose(
+                    get_absolute_compose_files(compose_files, self.in_docker_project_root_path),
+                )]
+            )
+
+        existing_inflight_env_id = await self._get_existing(name, config_template, compose_files)
+        # TODO check all services up (makes now on client side)
         if existing_inflight_env_id and not force_restart:
+            CONSOLE.print(
+                Text('Found suitable ready env: ', style=Style.info)
+                .append(Text(name, style=Style.mark))
+            )
             return existing_inflight_env_id, False
 
         CONSOLE.print(
@@ -121,27 +164,38 @@ class MaxwellDemonService:
         )
 
         new_env_id = get_new_env_id()
+        if release_id is None:
+            release_id = str(uuid4())
+
         if parallelism_limit == 1:
             CONSOLE.print(f'Using default service names with {parallelism_limit=}')
             new_env_id = EMPTY_ID
 
         target_compose_instance = self._compose_instance_manager.make(
             new_env_id,
-            compose_files=compose_files,
+            name=name,
+            compose_files=compose_files or ':'.join(scan_for_compose_files(self.in_docker_project_root_path)),
             config_template=config_template,
             release_id=release_id,
         )
+
+        system_instance_manager = self._compose_instance_manager.make_system()
         if parallelism_limit == 1:
             # check if limit 1 - existing already not fit - down all current inflight
-            to_down = self._compose_instance_manager.get_envs()
-            for instance in to_down:
-                await self._compose_instance_manager.down_env(instance)
-                self._inflight_keeper.cleanup_in_flight()
-                # TODO check if > 1
-                #          check current {name} is runnig?
-                #              runnig -> current {name} to down list
-                #              check curren - 1 > limit
-                #                   grab to down some of limit - (current - 1)
+            instances_to_down = await system_instance_manager.get_active_services_state()
+            env_ids = filter(
+                lambda x: x,
+                [
+                    instance_to_down.as_json()['labels'].get(Label.SERVICE_TEMPLATE_NAME, None)
+                    for instance_to_down in instances_to_down
+                ]
+            )
+            await self._compose_instance_manager.make_system().down(env_ids)
+            # TODO check if > 1
+            #          check current {name} is runnig?
+            #              runnig -> current {name} to down list
+            #              check curren - 1 > limit
+            #                   grab to down some of limit - (current - 1)
 
         await target_compose_instance.cleanup()
         await target_compose_instance.run()
@@ -164,25 +218,28 @@ class MaxwellDemonService:
                 style=Style.mark_neutral))
         )
 
-        self._inflight_keeper.update_inflight_envs(
-            name,
-            config_template=config_template,
-            compose_files=target_compose_instance_files.compose_files,
-            env_id=new_env_id,
-        )
-
         return new_env_id, True
 
-    def env(self, env_id: str) -> Environment:
-        env_instance_config = self._inflight_keeper.get_existing_inflight_env_by_id(env_id)
-        return env_instance_config.env
+    async def env(self, env_id: str) -> Environment | None:
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services = await system_instance_manager.get_active_services_state()
+        CONSOLE.print(f'get_env {env_id}:')
+
+        CONSOLE.print(services.as_json())
+        service_state = services.get_any_for(Label.ENV_ID, env_id)
+
+        # CONSOLE.print(service_state.as_json())
+        if service_state:
+            env_config = service_state.labels.get(Label.ENV_CONFIG, None)
+            return debase64_pickled(env_config)
+
+        return None
 
     async def status(self, env_id: str) -> ServicesComposeState:
-        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
-        services_status = await self._compose_interface(
-            compose_files=env_compose_files,
-            in_docker_project_root=self.in_docker_project_root_path
-        ).dc_state()
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services = await system_instance_manager.get_active_services_state()
+        services_status = services.get_all_for(lambda service_state: service_state.check(Label.ENV_ID, env_id))
+
         assert isinstance(services_status, ServicesComposeState), "Can't execute docker-compose ps"
         return services_status
 
@@ -190,7 +247,13 @@ class MaxwellDemonService:
         uid = str(uuid4())
         log_file = f'{uid}.log'
         self.execs = {uid: ExecRecord(env_id, container, log_file)}
-        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
+
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services = await system_instance_manager.get_active_services_state()
+        service_status = services.get_any_for(Label.ENV_ID, env_id)
+
+        env_compose_files = service_status.labels.get(Label.COMPOSE_FILES)
+
         compose_interface = self._compose_interface(
             compose_files=env_compose_files,
             in_docker_project_root=self.in_docker_project_root_path
@@ -211,7 +274,13 @@ class MaxwellDemonService:
             return b''
 
         exec_record = self.execs[uid]
-        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(exec_record.env_id)
+
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services = await system_instance_manager.get_active_services_state()
+        service_status = services.get_any_for(Label.ENV_ID, exec_record.env_id)
+
+        env_compose_files = service_status.labels.get(Label.COMPOSE_FILES)
+
         compose_interface = self._compose_interface(
             compose_files=env_compose_files,
             in_docker_project_root=self.in_docker_project_root_path
@@ -227,7 +296,12 @@ class MaxwellDemonService:
         return stdout
 
     async def logs(self, env_id: str, services: list[str]) -> dict[str, bytes]:
-        env_compose_files = self._inflight_keeper.get_existing_inflight_env_compose_files(env_id)
+        system_instance_manager = self._compose_instance_manager.make_system()
+        services_state = await system_instance_manager.get_active_services_state()
+        service_status = services_state.get_any_for(Label.ENV_ID, env_id)
+
+        env_compose_files = service_status.labels.get(Label.COMPOSE_FILES)
+
         compose_interface = self._compose_interface(
             compose_files=env_compose_files,
             in_docker_project_root=self.in_docker_project_root_path

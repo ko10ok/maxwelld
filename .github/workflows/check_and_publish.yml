@@ -1,13 +1,37 @@
-name: Publish
+name: Check and publish
 
 on:
   push:
+    branches: [ main ]
     tags:
       - 'v*.*.*'
+  pull_request:
+    branches: [ main ]
 
 jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v4
+
+    - name: Install DC
+      uses: KengoTODA/actions-setup-docker-compose@v1
+      with:
+        version: '2.29.2'
+
+    - name: Run e2e tests
+      env:
+        COMPOSE_FILE: "docker-compose.yml"
+        CI_DC_DISABLE_TTY: "-T"
+      run: |
+        cd tests
+        make e2e-run args='-vvv'
+
   publish_pypi:
     runs-on: ubuntu-latest
+    needs: tests
+    if: github.ref_type == 'tag'
 
     steps:
     - name: Checkout
@@ -24,9 +48,10 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: make publish
 
-
   publish_docker:
     runs-on: ubuntu-latest
+    needs: tests
+    if: github.ref_type == 'tag'
 
     steps:
     - name: Check out the repo
@@ -46,16 +71,3 @@ jobs:
 
     - name: Build and push docker image
       run: make buildx-build-n-push-image
-
-    - name: Install DC
-      uses: KengoTODA/actions-setup-docker-compose@v1
-      with:
-        version: '2.29.2'
-
-    - name: Run e2e tests
-      env:
-        COMPOSE_FILE: "docker-compose.yml"
-        CI_DC_DISABLE_TTY: "-T"
-      run: |
-        cd tests
-        make e2e-run args='-vvv'

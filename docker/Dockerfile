@@ -5,11 +5,11 @@ COPY --from=docker:25.0.3-dind-alpine3.19 /usr/local/bin/docker /usr/local/bin/
 LABEL description="Maxwelld (http://github.com/ko10ok/maxwelld) service. \
 Env params should be set up: \
 - COMPOSE_PROJECT_NAME - compose project name (namespace); \
+- DEFAULT_COMPOSE_FILES - compose project files used by default; \
 - HOST_PROJECT_ROOT_DIRECTORY - path for services volumes mapping; \
 - HOST_TMP_ENV_DIRECTORY - volumed path for temporarely generated envs; \
 - DOCKER_HOST - docker service host; \
 - PORT - service port (default=80); \
-- COMPOSE_FILES_DIRECTORY (default=/compose-files) - compose files directory; \
 - TMP_ENVS_DIRECTORY (default=/env-tmp) - tmp compose files directory; \
 - PROJECT_ROOT_DIRECTORY (default=/project ) - volume with project root when project contains service with volumes"
 
@@ -17,7 +17,6 @@ WORKDIR /maxwelld
 
 ARG TARGETPLATFORM
 
-ENV COMPOSE_FILES_DIRECTORY=${COMPOSE_FILES_DIRECTORY:-"/compose-files"}
 ENV PROJECT_ROOT_DIRECTORY=${PROJECT_ROOT_DIRECTORY:-"/project"}
 ENV TMP_ENVS_DIRECTORY=${TMP_ENVS_DIRECTORY:-"/tmp-envs"}
 ENV TMP_ENVS_REGISTER_FILE=${TMP_ENVS_REGISTER_FILE:-"envs.json"}

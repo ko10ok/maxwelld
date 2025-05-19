@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from maxwelld.core.sequence_run_types import ComposeInstanceFiles
-from maxwelld.core.utils.compose_instance_cfg import get_new_instance_compose_files
+from maxwelld.core.utils.compose_instance_cfg import made_up_instance_compose_files
 
 
 def make_debug_bash_env(env_config_compose_instance: ComposeInstanceFiles,
                         host_tmp_env_path: Path):
-    new_external_compose_file = get_new_instance_compose_files(
+    new_external_compose_file = made_up_instance_compose_files(
         env_config_compose_instance.compose_files_source,
         host_tmp_env_path / env_config_compose_instance.env_config_instance.env_id
     )

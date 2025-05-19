@@ -21,5 +21,5 @@ class EnvResponseParams(TypedDict):
 
 async def http_get_env(request: Request) -> web.Response:
     params: EnvRequestParams = await request.json()
-    env = MaxwellDemonServiceManager().get().env(env_id=params['id'])
+    env = await MaxwellDemonServiceManager().get().env(env_id=params['id'])
     return web.json_response(data=EnvResponseParams(env=base64_pickled(env)), status=200)

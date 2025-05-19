@@ -63,8 +63,6 @@ class ComposeShellInterface:
             return OperationError(f'Stdout:\n{stdout}\n\nStderr:\n{stderr}')
 
         state_result = ServicesComposeState(stdout.decode('utf-8'))
-        CONSOLE.print(Text('Services status result:', style=Style.info))
-        CONSOLE.print(state_result.as_rich_text())
         return state_result
 
     @retry(attempts=3, delay=1, until=lambda x: x == JobResult.BAD)

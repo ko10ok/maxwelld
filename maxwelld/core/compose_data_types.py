@@ -25,6 +25,7 @@ class ServiceComposeState:
     exit_code: int
     health: str
     status: str  # "Up X seconds"
+    labels: dict[str, str]
 
     @classmethod
     def from_json(cls, json_status: str) -> 'ServiceComposeState':
@@ -35,6 +36,11 @@ class ServiceComposeState:
             exit_code=status['ExitCode'],
             health=status['Health'],
             status=status['Status'],
+            labels={
+                (label_split := label.split('=', maxsplit=2))[0]: label_split[1] if len(label_split) == 2 else None
+                for label in status['Labels'].split(',')
+                if 'Labels' in status
+            },
         )
 
     def __eq__(self, other):
@@ -50,7 +56,8 @@ class ServiceComposeState:
                 f'state="{self.state}", '
                 f'exit_code="{self.exit_code}", '
                 f'health="{self.health}", '
-                f'status="{self.status}")')
+                f'status="{self.status}"\n'
+                f'labels={self.labels}')
 
     def as_rich_text(self, style: Style = Style()):
         service_string = Text('     ')
@@ -84,7 +91,11 @@ class ServiceComposeState:
             'exit_code': self.exit_code,
             'health': self.health,
             'status': self.status,
+            'labels': self.labels,
         }
+
+    def check(self, label: str, value):
+        return label in self.labels and self.labels[label] == value
 
 
 class ServicesComposeState:
@@ -129,3 +140,24 @@ class ServicesComposeState:
 
     def as_json(self, filter: Callable[[ServiceComposeState], bool] = lambda x: True, ) -> list[dict]:
         return [service_status.as_json() for service_status in self._services if filter(service_status)]
+
+    @classmethod
+    def make_new_from_services(cls, services: list[ServiceComposeState]) -> 'ServicesComposeState':
+        new_state = ServicesComposeState('')
+        new_state._services = services
+        return new_state
+
+    def get_all_for(self, filter: Callable[[ServiceComposeState], bool]) -> 'ServicesComposeState':
+        services_states = []
+        for service_state in self._services:
+            if filter(service_state):
+                services_states += [service_state]
+
+        return self.make_new_from_services(services=services_states)
+
+    def get_any_for(self, label: str, value) -> ServiceComposeState | None:
+        for service_state in self._services:
+            if service_state.check(label, value):
+                return service_state
+
+        return 

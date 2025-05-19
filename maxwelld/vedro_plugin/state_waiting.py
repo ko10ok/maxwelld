@@ -21,7 +21,6 @@ from maxwelld.vedro_plugin.logger import WaitVerbosity
 
 
 def is_service_not_running_or_not_healthy(service_state: ServiceComposeState) -> bool:
-    print(service_state.state, service_state.exit_code)
     return (service_state.state != ComposeState.RUNNING
             or service_state.health not in (ComposeHealth.EMPTY, ComposeHealth.HEALTHY)
             or (service_state.state == ComposeState.EXITED and service_state.exit_code != 0))
@@ -42,8 +41,7 @@ async def check_all_services_up(
         state_keeper.update_state(ServicesState.DEFAULT_STATE)
 
     services_state = await get_services_state()
-    from pprint import pprint
-    pprint(services_state.as_json())
+
     is_all_up = (all([
         service.state == ComposeState.RUNNING or (service.state == ComposeState.EXITED and service.exit_code == 0)
         for service in services_state if service.name in services

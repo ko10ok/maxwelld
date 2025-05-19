@@ -12,5 +12,5 @@ class EnvTagsOrderer(ScenarioOrderer):
 
         return sorted(
             copied,
-            key=lambda x: extract_scenario_config(x)
+            key=lambda x: str(extract_scenario_config(x))
         )
