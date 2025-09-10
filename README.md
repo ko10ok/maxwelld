@@ -1,4 +1,13 @@
-# Maxwell's demon of test enviroment
+# Maxwell's demon of test enviroment (deprecated)
+
+⚠️ **DEPRECATION NOTICE**
+>
+> This package is no longer maintained and has been **deprecated**.
+> It has been replaced by a newer and more actively maintained lightweight plugin tool with ~compatible interface: [UberCompose](https://github.com/ko10ok/uber-compose). 
+>
+> We recommend migrating to that tool to continue receiving updates and support.
+>
+> Thank you for using this package!
 
 Orchestrate testing env easily.
 
